@@ -1,4 +1,3 @@
-import locale
 import time
 from datetime import datetime
 
@@ -49,17 +48,9 @@ with col1:
     with main_tabs[0]:
         st.header("🚖 Add a Ride")
 
-        try:
-            locale.setlocale(locale.LC_TIME, "en_PK.UTF-8")
-        except locale.Error:
-            locale.setlocale(locale.LC_TIME, "en_US.UTF-8")
-
         pkt = pytz.timezone("Asia/Karachi")
-
         now_pkt = datetime.now(pkt)
 
-        if "ride_time" not in st.session_state:
-            st.session_state.ride_time = now_pkt
         with st.form("ride_form", clear_on_submit=False):
             ride_date = st.date_input("Date", now_pkt.date())
             ride_time = st.time_input("Time", now_pkt.time(), key="ride_time")
@@ -71,10 +62,9 @@ with col1:
         if preview:
             ride_dt = datetime.combine(ride_date, ride_time)
             ride_dt_pkt = pkt.localize(ride_dt)
+            formatted_dt = ride_dt_pkt.strftime("%d-%m-%Y at %I:%M %p")
+            st.info(f"Preview → {formatted_dt} | Amount: PKR {amount:,}")
 
-            st.info(
-                f"Preview → {ride_dt_pkt.strftime('%A, %d %B %Y at %I:%M %p')} | Amount: PKR {amount:,}"
-            )
         if submitted:
             month = ride_date.strftime("%B")
             formatted_time = ride_time.strftime("%I:%M %p")
