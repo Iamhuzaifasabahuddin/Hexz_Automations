@@ -123,9 +123,15 @@ with col1:
             df = pd.DataFrame(rides)
             df.index = range(1, len(rides) + 1)
 
-            subtabs = st.tabs(["📋 All Data", "📅 By Month", "📊 Summary", "❌ Delete"])
 
-            with subtabs[0]:
+            view = st.radio(
+                "Select View",
+                ["📋 All Data", "📅 By Month", "📊 Summary", "❌ Delete"],
+
+                horizontal=True
+            )
+
+            if view == "📋 All Data":
                 st.subheader("All Ride Data")
                 st.dataframe(df)
 
@@ -133,7 +139,7 @@ with col1:
                 st.subheader("Total per Month")
                 st.bar_chart(month_totals.set_index("month"))
 
-            with subtabs[1]:
+            elif view == "📅 By Month":
                 st.subheader("Filter by Month")
                 unique_months = sorted(df["month"].unique())
                 selected_month = st.selectbox("Choose a month", ["All"] + list(unique_months))
@@ -151,22 +157,24 @@ with col1:
                 st.metric("💲 Total Spend", f"PKR{total:,.2f}")
                 st.metric("💸 Average Spend", f"PKR{avg:,.2f}")
 
-            with subtabs[2]:
+            elif view == "📊 Summary":
                 st.subheader("Overall Summary")
                 total_spend = df["amount"].sum()
                 avg_spend = df["amount"].mean()
 
-                st.metric("💲 Total Spend (All Time)", f"PKR{total:,.2f}")
+                st.metric("💲 Total Spend (All Time)", f"PKR{total_spend:,.2f}")
                 st.metric("💸 Average Spend per Ride", f"PKR{avg_spend:,.2f}")
 
                 month_totals = df.groupby("month")["amount"].sum().reset_index()
                 st.bar_chart(month_totals.set_index("month"))
-            with subtabs[3]:
+
+            elif view == "❌ Delete":
                 for idx, ride in enumerate(rides, start=1):
                     st.write(f"{ride['date']} | {ride['time']} | PKR{ride['amount']} | {ride['month']}")
                     if st.button(f"🗑 Delete Ride {idx}", key=f"delete_{ride['id']}"):
                         notion.pages.update(ride["id"], archived=True)
                         st.success(f"Deleted ride from {ride['date']}")
+                        st.cache_data.clear()
                         time.sleep(2)
                         st.rerun()
         else:
