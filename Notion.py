@@ -97,27 +97,44 @@ with col1:
 
         @st.cache_data(ttl=120)
         def get_rides():
-            data = notion.databases.query(database_id=database_id)
             rides = []
-            for row in data["results"]:
-                props = row["properties"]
+            has_more = True
+            start_cursor = None
 
-                ride_date = props["Date"]["date"]["start"] if props["Date"]["date"] else None
-                amount = props["Amount"]["number"] if props["Amount"]["number"] else 0
-                month = (
-                    props["Month"]["rich_text"][0]["text"]["content"]
-                    if props["Month"]["rich_text"] else "Unknown"
-                )
-                ride_time = props["Time"]["rich_text"][0]["text"]["content"] if props["Time"][
-                    "rich_text"] else "Unknown"
-                rides.append({
-                    "id": row["id"],
-                    "date": ride_date,
-                    "time": ride_time,
-                    "amount": amount,
-                    "month": month
+            while has_more:
 
-                })
+                if start_cursor:
+                    data = notion.databases.query(
+                        database_id=database_id,
+                        start_cursor=start_cursor
+                    )
+                else:
+                    data = notion.databases.query(database_id=database_id)
+
+                for row in data["results"]:
+                    props = row["properties"]
+
+                    ride_date = props["Date"]["date"]["start"] if props["Date"]["date"] else None
+                    amount = props["Amount"]["number"] if props["Amount"]["number"] else 0
+                    month = (
+                        props["Month"]["rich_text"][0]["text"]["content"]
+                        if props["Month"]["rich_text"] else "Unknown"
+                    )
+                    ride_time = (
+                        props["Time"]["rich_text"][0]["text"]["content"]
+                        if props["Time"]["rich_text"] else "Unknown"
+                    )
+
+                    rides.append({
+                        "id": row["id"],
+                        "date": ride_date,
+                        "time": ride_time,
+                        "amount": amount,
+                        "month": month
+                    })
+                has_more = data.get("has_more", False)
+                start_cursor = data.get("next_cursor")
+
             return rides
 
 
