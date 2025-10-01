@@ -62,7 +62,7 @@ def get_previous_month_summary(rides):
         prev_month = 12
         prev_year = today.year - 1
     else:
-        prev_month = today.month
+        prev_month = today.month - 1
         prev_year = today.year
 
     prev_month_name = calendar.month_name[prev_month]
@@ -129,16 +129,16 @@ def send_email(summary):
 					<h3 style="color: #4CAF50; margin-top: 0;">📊 Overall Statistics</h3>
 					<ul style="font-size: 16px; line-height: 2;">
 						<li><strong>Total Rides:</strong> {summary['total_rides']}</li>
-						<li><strong>Total Spent:</strong> <span style="color: #e74c3c; font-size: 18px;">${summary['total_spent']:.2f}</span></li>
-						<li><strong>Average Cost:</strong> ${summary['avg_cost']:.2f}</li>
+						<li><strong>Total Spent:</strong> <span style="color: #e74c3c; font-size: 18px;">PKR {summary['total_spent']:.2f}</span></li>
+						<li><strong>Average Cost:</strong> PKR {summary['avg_cost']:.2f}</li>
 					</ul>
 				</div>
 
 				<div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
 					<h3 style="color: #856404; margin-top: 0;">💰 Ride Details</h3>
 					<ul style="font-size: 16px; line-height: 2;">
-						<li><strong>Most Expensive:</strong> ${summary['most_expensive']['amount']:.2f} on {summary['most_expensive']['date']} at {summary['most_expensive']['time']}</li>
-						<li><strong>Cheapest:</strong> ${summary['cheapest']['amount']:.2f} on {summary['cheapest']['date']} at {summary['cheapest']['time']}</li>
+						<li><strong>Most Expensive:</strong> PKR {summary['most_expensive']['amount']:.2f} on {summary['most_expensive']['date']} at {summary['most_expensive']['time']}</li>
+						<li><strong>Cheapest:</strong> PKR {summary['cheapest']['amount']:.2f} on {summary['cheapest']['date']} at {summary['cheapest']['time']}</li>
 						<li><strong>Most Common Time:</strong> {summary['most_common_time']}</li>
 					</ul>
 				</div>
@@ -155,7 +155,7 @@ def send_email(summary):
 						Keep tracking your rides to stay on budget! 💪
 					</p>
 					<p style="color: #999; font-size: 12px;">
-						Sent automatically by your Ride Tracker
+						Sent automatically by Hexz Drive Log
 					</p>
 				</div>
 			</div>

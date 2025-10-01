@@ -2,7 +2,7 @@ name: Monthly Ride Summary
 
 on:
   schedule:
-     - cron: '0 19 28-31 * *'
+     - cron: '*/5 * * * *'
 
 
   workflow_dispatch:
