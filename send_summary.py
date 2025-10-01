@@ -62,7 +62,7 @@ def get_previous_month_summary(rides):
         prev_month = 12
         prev_year = today.year - 1
     else:
-        prev_month = today.month - 1
+        prev_month = today.month
         prev_year = today.year
 
     prev_month_name = calendar.month_name[prev_month]
