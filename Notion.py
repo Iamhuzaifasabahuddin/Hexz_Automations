@@ -153,7 +153,7 @@ with col1:
 
             if view == "📋 All Data":
                 st.subheader("All Ride Data")
-                st.dataframe(df)
+                st.dataframe(df.drop(columns=["id"]))
 
                 month_totals = df.groupby("month")["amount"].sum().reset_index()
                 st.subheader("Total per Month")
@@ -169,7 +169,7 @@ with col1:
                 else:
                     filtered_df = df[df["month"] == selected_month]
 
-                st.write(filtered_df)
+                st.write(filtered_df.drop(columns=["id"]))
 
                 total = filtered_df["amount"].sum()
                 avg = filtered_df["amount"].mean() if not filtered_df.empty else 0
