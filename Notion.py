@@ -146,7 +146,7 @@ with col1:
 
             view = st.radio(
                 "Select View",
-                ["📋 All Data", "📅 By Month", "📊 Summary", "❌ Delete"],
+                ["📅 By Month","📋 All Data",  "📊 Summary", "❌ Delete"],
 
                 horizontal=True
             )
@@ -163,7 +163,6 @@ with col1:
                 st.subheader("Filter by Month")
                 unique_months = sorted(df["month"].unique())
                 selected_month = st.selectbox("Choose a month", ["All"] + list(unique_months))
-
                 if selected_month == "All":
                     filtered_df = df
                 else:
