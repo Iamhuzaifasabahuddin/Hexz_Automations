@@ -146,7 +146,7 @@ with col1:
 
             view = st.radio(
                 "Select View",
-                ["📅 By Month","📋 All Data",  "📊 Summary", "❌ Delete"],
+                ["📅 By Month", "📋 All Data", "📊 Summary", "❌ Delete"],
 
                 horizontal=True
             )
@@ -159,10 +159,19 @@ with col1:
                 st.subheader("Total per Month")
                 st.bar_chart(month_totals.set_index("month"))
 
+                month_totals.index = range(1, len(month_totals) + 1)
+                st.dataframe(month_totals)
+
             elif view == "📅 By Month":
                 st.subheader("Filter by Month")
                 unique_months = sorted(df["month"].unique())
-                selected_month = st.selectbox("Choose a month", ["All"] + list(unique_months))
+                months = ["All"] + list(unique_months)
+                current_month = datetime.now(pkt).strftime("%B")
+                if current_month in unique_months:
+                    default_index = unique_months.index(current_month) + 1
+                else:
+                    default_index = 0
+                selected_month = st.selectbox("Choose a month", months, index=default_index)
                 if selected_month == "All":
                     filtered_df = df
                 else:
