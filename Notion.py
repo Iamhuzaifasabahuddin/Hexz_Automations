@@ -196,15 +196,50 @@ with col1:
                 month_totals = df.groupby("month")["amount"].sum().reset_index()
                 st.bar_chart(month_totals.set_index("month"))
 
+
             elif view == "❌ Delete":
-                for idx, ride in enumerate(rides, start=1):
-                    st.write(f"{ride['date']} | {ride['time']} | PKR{ride['amount']} | {ride['month']}")
-                    if st.button(f"🗑 Delete Ride {idx}", key=f"delete_{ride['id']}"):
-                        notion.pages.update(ride["id"], archived=True)
-                        st.success(f"Deleted ride from {ride['date']}")
-                        st.cache_data.clear()
-                        time.sleep(2)
-                        st.rerun()
+                unique_months = sorted(df["month"].unique())
+
+                months = ["All"] + list(unique_months)
+                current_month = datetime.now(pkt).strftime("%B")
+
+                default_index = unique_months.index(current_month) + 1 if current_month in unique_months else 0
+
+                selected_month = st.selectbox("Choose a month", months, index=default_index, key="delete_box")
+
+                if selected_month == "All":
+                    filtered_df = df
+                else:
+                    filtered_df = df[df["month"] == selected_month]
+
+                if filtered_df.empty:
+
+                    st.info("No rides found for the selected month.")
+
+                else:
+
+                    for idx, (_, ride) in enumerate(filtered_df.iterrows(), start=1):
+
+                        st.write(f"{ride['date']} | {ride['time']} | PKR{ride['amount']} | {ride['month']}")
+
+                        if st.button(f"🗑 Delete Ride {idx}", key=f"delete_{ride['id']}"):
+
+                            try:
+
+                                notion.pages.update(ride["id"], archived=True)
+
+                                st.success(f"Deleted ride from {ride['date']}")
+
+                                st.cache_data.clear()
+
+                                time.sleep(1)
+
+                                st.rerun()
+
+                            except Exception as e:
+
+                                st.error(f"Error deleting ride: {e}")
+
         else:
             st.info("❌ No rides recorded yet.")
     with col2:
