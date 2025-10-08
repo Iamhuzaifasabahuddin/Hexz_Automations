@@ -51,7 +51,7 @@ with col1:
         pkt = pytz.timezone("Asia/Karachi")
         now_pkt = datetime.now(pkt)
 
-        with st.form("ride_form", clear_on_submit=False):
+        with st.form("ride_form", clear_on_submit=True):
             ride_date = st.date_input("Date", now_pkt.date())
             ride_time = st.time_input("Time", now_pkt.time(), key="ride_time")
             amount = st.number_input("Amount", min_value=0, step=50)
@@ -64,29 +64,35 @@ with col1:
             ride_dt_pkt = pkt.localize(ride_dt)
             formatted_dt = ride_dt_pkt.strftime("%d-%m-%Y at %I:%M %p")
             st.info(f"Preview → {formatted_dt} | Amount: PKR {amount:,}")
-
         if submitted:
-            month = ride_date.strftime("%B")
-            formatted_time = ride_time.strftime("%I:%M %p")
-            try:
-                notion.pages.create(
-                    parent={"database_id": database_id},
-                    properties={
-                        "Name": {
-                            "title": [
-                                {"text": {"content": f"Ride {ride_date} {ride_time.strftime('%H:%M')}"}}
-                            ]
-                        },
-                        "Date": {"date": {"start": ride_date.isoformat()}},
-                        "Time": {"rich_text": [{"text": {"content": formatted_time}}]},
-                        "Amount": {"number": amount},
-                        "Month": {"rich_text": [{"text": {"content": month}}]},
-                    },
-                )
-                st.success("Ride saved to Notion! ✅")
-            except Exception as e:
-                st.error(f"Error: {e}")
+            if not ride_date or not ride_time or amount <= 0:
+                st.warning("⚠️ Please provide a valid date, time, and amount before saving.")
+            else:
+                month = ride_date.strftime("%B")
+                formatted_time = ride_time.strftime("%I:%M %p")
+                page_title = f"Ride {ride_date} {ride_time.strftime('%H:%M')}"
 
+                try:
+                    response = notion.pages.create(
+                        parent={"database_id": database_id},
+                        properties={
+                            "Name": {
+                                "title": [
+                                    {"text": {"content": page_title}}
+                                ]
+                            },
+                            "Date": {"date": {"start": ride_date.isoformat()}},
+                            "Time": {"rich_text": [{"text": {"content": formatted_time}}]},
+                            "Amount": {"number": amount},
+                            "Month": {"rich_text": [{"text": {"content": month}}]},
+                        },
+                    )
+                    if response and response.get("id"):
+                        st.success(f"✅ Ride saved to Notion successfully!\n\n**Title:** {page_title} for PKR {amount}")
+                    else:
+                        st.warning("⚠️ Ride creation request sent, but no confirmation received from Notion.")
+                except Exception as e:
+                    st.error(f"Error: {e}")
     with main_tabs[1]:
         st.header("📊 Ride Stats")
 
