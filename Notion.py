@@ -136,7 +136,6 @@ with col1:
                         "date": ride_date,
                         "time": ride_time,
                         "amount": amount,
-                        "month": month
                     })
                 has_more = data.get("has_more", False)
                 start_cursor = data.get("next_cursor")
@@ -148,12 +147,20 @@ with col1:
 
         if rides:
             df = pd.DataFrame(rides)
-            df.index = range(1, len(rides) + 1)
+
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            df["month"] = df["date"].dt.strftime("%B")
+            df["year"] = df["date"].dt.year
+
+            df = df.sort_values(by="date", ascending=True)
+            df["date"] = df["date"].dt.strftime("%d-%B-%Y")
+            df.index = range(1, len(df) + 1)
+            unique_years = sorted(df["year"].dropna().unique(), reverse=True)
+            unique_months = sorted(df["month"].dropna().unique())
 
             view = st.radio(
                 "Select View",
                 ["📅 By Month", "📋 All Data", "📊 Summary", "❌ Delete"],
-
                 horizontal=True
             )
 
@@ -161,27 +168,31 @@ with col1:
                 st.subheader("All Ride Data")
                 st.dataframe(df.drop(columns=["id"]))
 
-                month_totals = df.groupby("month")["amount"].sum().reset_index()
+                month_totals = df.groupby(["year", "month"])["amount"].sum().reset_index()
                 st.subheader("Total per Month")
                 st.bar_chart(month_totals.set_index("month"))
 
+                month_totals = month_totals.sort_values(by="amount", ascending=False)
                 month_totals.index = range(1, len(month_totals) + 1)
                 st.dataframe(month_totals)
 
             elif view == "📅 By Month":
-                st.subheader("Filter by Month")
-                unique_months = sorted(df["month"].unique())
-                months = ["All"] + list(unique_months)
+                st.subheader("Filter by Month and Year")
+
+
                 current_month = datetime.now(pkt).strftime("%B")
-                if current_month in unique_months:
-                    default_index = unique_months.index(current_month) + 1
-                else:
-                    default_index = 0
-                selected_month = st.selectbox("Choose a month", months, index=default_index)
+                current_year = datetime.now(pkt).year
+
+                months = ["All"] + unique_months
+                default_month_idx = unique_months.index(current_month) + 1 if current_month in unique_months else 0
+                selected_month = st.selectbox("Select Month", months, index=default_month_idx)
+
+                selected_year = st.number_input("Select Year", value=current_year, min_value=2025, max_value=current_year)
+
                 if selected_month == "All":
-                    filtered_df = df
+                    filtered_df = df[df["year"] == selected_year]
                 else:
-                    filtered_df = df[df["month"] == selected_month]
+                    filtered_df = df[(df["year"] == selected_year) & (df["month"] == selected_month)]
 
                 st.write(filtered_df.drop(columns=["id"]))
 
@@ -196,59 +207,48 @@ with col1:
                 total_spend = df["amount"].sum()
                 avg_spend = df["amount"].mean()
 
-                st.metric("💲 Total Spend (All Time)", f"PKR{total_spend:,.2f}")
-                st.metric("💸 Average Spend per Ride", f"PKR{avg_spend:,.2f}")
+                st.metric("💲 Total Spend (All Time)", f"PKR {total_spend:,.2f}")
+                st.metric("💸 Average Spend per Ride", f"PKR {avg_spend:,.2f}")
 
-                month_totals = df.groupby("month")["amount"].sum().reset_index()
+                month_totals = df.groupby(["year", "month"])["amount"].sum().reset_index()
                 st.bar_chart(month_totals.set_index("month"))
 
-
             elif view == "❌ Delete":
-                unique_months = sorted(df["month"].unique())
+                st.subheader("Delete Rides by Month/Year")
 
-                months = ["All"] + list(unique_months)
                 current_month = datetime.now(pkt).strftime("%B")
+                current_year = datetime.now(pkt).year
 
-                default_index = unique_months.index(current_month) + 1 if current_month in unique_months else 0
 
-                selected_month = st.selectbox("Choose a month", months, index=default_index, key="delete_box")
-
+                months = ["All"] + unique_months
+                default_month_idx = unique_months.index(current_month) + 1 if current_month in unique_months else 0
+                selected_month = st.selectbox("Select Month", months, index=default_month_idx, key="delete_box")
+                selected_year = st.number_input("Select Year", value=current_year, min_value=2025, max_value=current_year)
+                df["date"] = pd.to_datetime(df["date"], errors="coerce")
                 if selected_month == "All":
-                    filtered_df = df
+                    filtered_df = df[df["year"] == selected_year]
                 else:
-                    filtered_df = df[df["month"] == selected_month]
+                    filtered_df = df[(df["year"] == selected_year) & (df["month"] == selected_month)]
 
                 if filtered_df.empty:
-
-                    st.info("No rides found for the selected month.")
-
+                    st.info("No rides found for the selected filters.")
                 else:
-
                     for idx, (_, ride) in enumerate(filtered_df.iterrows(), start=1):
-
-                        st.write(f"{ride['date']} | {ride['time']} | PKR{ride['amount']} | {ride['month']}")
-
-                        if st.button(f"🗑 Delete Ride {idx}", key=f"delete_{ride['id']}"):
-
-                            try:
-
-                                notion.pages.update(ride["id"], archived=True)
-
-                                st.success(f"Deleted ride from {ride['date']}")
-
-                                st.cache_data.clear()
-
-                                time.sleep(1)
-
-                                st.rerun()
-
-                            except Exception as e:
-
-                                st.error(f"Error deleting ride: {e}")
+                        with st.expander(
+                                f"{ride['date'].strftime('%d-%b-%Y')} @ {ride['time']}| PKR{ride['amount']} | {ride['month']} {ride['year']}"):
+                            if st.button("🗑 Delete Ride", key=f"delete_{ride['id']}"):
+                                try:
+                                    notion.pages.update(ride["id"], archived=True)
+                                    st.success(f"Deleted ride from {ride['date'].strftime('%d-%b-%Y')} @ {ride['time']}")
+                                    st.cache_data.clear()
+                                    time.sleep(1)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error deleting ride: {e}")
 
         else:
             st.info("❌ No rides recorded yet.")
-    with col2:
+
         if st.button("🚪 Logout"):
             st.session_state.authenticated = False
             st.success("Logged out successfully! 👋")
