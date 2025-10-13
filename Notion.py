@@ -51,7 +51,7 @@ with col1:
         pkt = pytz.timezone("Asia/Karachi")
         now_pkt = datetime.now(pkt)
 
-        with st.form("ride_form", clear_on_submit=True):
+        with st.form("ride_form", clear_on_submit=False):
             ride_date = st.date_input("Date", now_pkt.date())
             ride_time = st.time_input("Time", now_pkt.time(), key="ride_time")
             amount = st.number_input("Amount", min_value=0, step=50)
