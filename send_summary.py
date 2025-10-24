@@ -9,6 +9,7 @@ from email.mime.multipart import MIMEMultipart
 # Initialize Notion client
 notion = Client(auth=os.environ["NOTION_TOKEN"])
 database_id = os.environ["NOTION_DATABASE_ID"]
+datasource_id = os.environ["NOTION_DATASOURCE_ID"]
 
 
 def get_all_rides():
@@ -19,12 +20,12 @@ def get_all_rides():
 
     while has_more:
         if start_cursor:
-            data = notion.databases.query(
-                database_id=database_id,
+            data = notion.data_sources.query(
+                data_source_id=datasource_id,
                 start_cursor=start_cursor
             )
         else:
-            data = notion.databases.query(database_id=database_id)
+            data = notion.data_sources.query(data_source_id=datasource_id)
 
         for row in data["results"]:
             props = row["properties"]

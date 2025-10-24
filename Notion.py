@@ -8,6 +8,7 @@ from notion_client import Client
 
 notion = Client(auth=st.secrets["notion_token"])
 database_id = st.secrets["database_id"]
+datasource_id = st.secrets["datasource_id"]
 APP_PASSWORD = st.secrets["app_password"]
 
 st.set_page_config(
@@ -110,12 +111,12 @@ with col1:
             while has_more:
 
                 if start_cursor:
-                    data = notion.databases.query(
-                        database_id=database_id,
+                    data = notion.data_sources.query(
+                        data_source_id=datasource_id,
                         start_cursor=start_cursor
                     )
                 else:
-                    data = notion.databases.query(database_id=database_id)
+                    data = notion.data_sources.query(datasource_id=datasource_id)
 
                 for row in data["results"]:
                     props = row["properties"]
