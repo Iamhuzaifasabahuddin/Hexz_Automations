@@ -137,7 +137,7 @@ with col1:
                         start_cursor=start_cursor
                     )
                 else:
-                    data = notion.data_sources.query(datasource_id=datasource_id)
+                    data = notion.data_sources.query(data_source_id=datasource_id)
 
                 for row in data["results"]:
                     props = row["properties"]
