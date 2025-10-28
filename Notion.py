@@ -63,7 +63,7 @@ with col1:
         if preview:
             ride_dt = datetime.combine(ride_date, ride_time)
             ride_dt_pkt = pkt.localize(ride_dt)
-            formatted_dt = ride_dt_pkt.strftime("%d-%m-%Y at %I:%M %p")
+            formatted_dt = ride_dt_pkt.strftime("%d-%B-%Y at %I:%M %p")
             st.info(f"Preview → {formatted_dt} | Amount: PKR {amount:,}")
         if submitted:
             if not ride_date or not ride_time or amount <= 0:

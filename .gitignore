@@ -1,5 +1,7 @@
 *.json
 Test.py
 *.xlsx
-Gmail_Automation.py
+.misc/Gmail_Automation.py
 *.toml
+
+.misc
