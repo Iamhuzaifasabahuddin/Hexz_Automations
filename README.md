@@ -14,7 +14,7 @@ It runs on a scheduled **GitHub Actions workflow** to automatically send you mon
 ---
 
 ## 🛠️ Tech Stack
-- **Python 3.11**  
+- **Python 3.13**  
 - **Notion API (`notion-client`)**  
 - **Streamlit**  
 - **smtplib / Gmail SMTP** for email summaries  
