@@ -116,7 +116,8 @@ with col1:
                 st.success(f"{transaction_type} saved to Notion! ✅")
             except Exception as e:
                 st.error(f"Error: {e}")
-
+        else:
+            st.warning("Missing or Invalid Data Detected!")
     with main_tabs[1]:
         st.header("📊 Budget Overview")
 
