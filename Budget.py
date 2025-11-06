@@ -92,7 +92,7 @@ with col1:
             emoji = "➖" if transaction_type == "Expense" else "➕"
             st.info(f"Preview {emoji} {transaction_type}: {category} | {formatted_dt} | PKR {amount:,}")
 
-        if submitted:
+        if submitted and amount > 0 and category and transaction_type:
             month = transaction_date.strftime("%B %Y")
             formatted_time = transaction_time.strftime("%I:%M %p")
             try:
