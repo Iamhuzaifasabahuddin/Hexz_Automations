@@ -6,13 +6,13 @@ import pytz
 import streamlit as st
 from notion_client import Client
 
-notion = Client(auth=st.secrets["notion_token_2"])
-database_id = st.secrets["database_id_2"]
-datasource_id = st.secrets["data_source_id_2"]
-APP_PASSWORD = st.secrets["app_password_2"]
+notion = Client(auth=st.secrets["notion_token_3"])
+database_id = st.secrets["database_id_3"]
+datasource_id = st.secrets["data_source_id_3"]
+APP_PASSWORD = st.secrets["app_password_3"]
 
 st.set_page_config(
-    page_title="Personal Budget Tracker",
+    page_title="Hexz Personal Budget Tracker",
     page_icon="💰",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -29,7 +29,7 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-    st.title("🔑 Budget Tracker Login")
+    st.title("🔑 Hexz Budget Tracker Login")
     password = st.text_input("Enter Password", type="password")
     if st.button("Login"):
         if password == APP_PASSWORD:
