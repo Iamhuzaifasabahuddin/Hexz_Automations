@@ -92,32 +92,33 @@ with col1:
             emoji = "➖" if transaction_type == "Expense" else "➕"
             st.info(f"Preview {emoji} {transaction_type}: {category} | {formatted_dt} | PKR {amount:,}")
 
-        if submitted and amount > 0 and category and transaction_type:
-            month = transaction_date.strftime("%B %Y")
-            formatted_time = transaction_time.strftime("%I:%M %p")
-            try:
-                notion.pages.create(
-                    parent={"database_id": database_id},
-                    properties={
-                        "Name": {
-                            "title": [
-                                {"text": {"content": f"{transaction_type} - {category} ({transaction_date})"}}
-                            ]
+        if submitted :
+            if amount > 0 and category and transaction_type:
+                month = transaction_date.strftime("%B %Y")
+                formatted_time = transaction_time.strftime("%I:%M %p")
+                try:
+                    notion.pages.create(
+                        parent={"database_id": database_id},
+                        properties={
+                            "Name": {
+                                "title": [
+                                    {"text": {"content": f"{transaction_type} - {category} ({transaction_date})"}}
+                                ]
+                            },
+                            "Type": {"select": {"name": transaction_type}},
+                            "Category": {"rich_text": [{"text": {"content": category}}]},
+                            "Date": {"date": {"start": transaction_date.isoformat()}},
+                            "Time": {"rich_text": [{"text": {"content": formatted_time}}]},
+                            "Amount": {"number": amount},
+                            "Month": {"rich_text": [{"text": {"content": month}}]},
+                            "Description": {"rich_text": [{"text": {"content": description if description else ""}}]},
                         },
-                        "Type": {"select": {"name": transaction_type}},
-                        "Category": {"rich_text": [{"text": {"content": category}}]},
-                        "Date": {"date": {"start": transaction_date.isoformat()}},
-                        "Time": {"rich_text": [{"text": {"content": formatted_time}}]},
-                        "Amount": {"number": amount},
-                        "Month": {"rich_text": [{"text": {"content": month}}]},
-                        "Description": {"rich_text": [{"text": {"content": description if description else ""}}]},
-                    },
-                )
-                st.success(f"{transaction_type} saved to Notion! ✅")
-            except Exception as e:
-                st.error(f"Error: {e}")
-        else:
-            st.warning("Missing or Invalid Data Detected!")
+                    )
+                    st.success(f"{transaction_type} - {category} @ {transaction_date} - {formatted_time} saved to Notion! ✅")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+            else:
+                st.warning("Missing or Invalid Data Detected!")
     with main_tabs[1]:
         st.header("📊 Budget Overview")
 

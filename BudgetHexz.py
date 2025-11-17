@@ -113,7 +113,7 @@ with col1:
                         "Description": {"rich_text": [{"text": {"content": description if description else ""}}]},
                     },
                 )
-                st.success(f"{transaction_type} saved to Notion! ✅")
+                st.success(f"{transaction_type} - {category} @ {transaction_date} - {formatted_time} saved to Notion! ✅")
             except Exception as e:
                 st.error(f"Error: {e}")
         else:
