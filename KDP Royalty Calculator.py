@@ -13,7 +13,7 @@ def process_sheet(df, sheet_name):
             st.error(f"'Royalty Date' column not found in {sheet_name}. Skipping this sheet.")
             return
 
-        df["Royalty Date"] = pd.to_datetime(df["Royalty Date"], format="%Y-%m", errors="coerce")
+        df["Royalty Date"] = pd.to_datetime(df["Royalty Date"], errors="coerce")
         df["Year"] = df["Royalty Date"].dt.year
         df["Month-Year"] = df["Royalty Date"].dt.strftime("%b-%Y")
 
