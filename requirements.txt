@@ -2,3 +2,4 @@
 notion-client
 pandas
 streamlit
+openpyxl
