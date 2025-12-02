@@ -192,7 +192,7 @@ with col1:
 
             view = st.radio(
                 "Select View",
-                ["📊 Dashboard", "📅 By Month", "📋 All Data", "📈 By Category", "❌ Delete"],
+                ["📅 By Month", "📊 Dashboard", "📋 All Data", "📈 By Category", "❌ Delete"],
                 horizontal=True
             )
 
@@ -251,7 +251,7 @@ with col1:
 
                 unique_months = sorted(df["month"].unique())
                 months = ["All"] + list(unique_months)
-                current_month = datetime.now(pkt).strftime("%B")
+                current_month = datetime.now(pkt).strftime("%B %Y")
                 if current_month in unique_months:
                     default_index = unique_months.index(current_month) + 1
                 else:
@@ -262,6 +262,7 @@ with col1:
                 else:
                     filtered_df = df[df["month"] == selected_month]
 
+                filtered_df.index = range(1, len(filtered_df) + 1)
                 st.write(filtered_df.drop(columns=["id"]))
 
                 income = filtered_df[filtered_df["type"] == "Income"]["amount"].sum()
