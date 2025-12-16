@@ -205,13 +205,17 @@ with main_tabs[1]:
             income_df = df[df["type"] == "Income"]
             savings_df = df[df["category"] == "Savings"]
 
-            st.dataframe(savings_df)
+
             col_a, col_b, col_c = st.columns(3)
             col_a.metric("💰 Total Income", f"PKR {total_income:,.2f}")
             col_b.metric("💸 Total Expenses", f"PKR {total_expense:,.2f}")
             col_b.metric("💹 Total Savings", f"PKR {savings:,.2f}")
-            col_c.metric("💵 Net Balance", f"PKR {net_balance:,.2f}",
-                         delta=f"{net_balance:,.2f}", delta_color="normal")
+            col_c.metric(
+                "💵 Net Balance",
+                f"PKR {net_balance:,.2f}",
+                delta=f"{net_balance:,.2f}",
+                delta_color="normal"
+            )
 
             st.subheader("Income vs Expenses by Month")
             month_summary = df.groupby(["month", "type"])["amount"].sum().reset_index()
@@ -220,28 +224,45 @@ with main_tabs[1]:
             month_summary.index = range(1, len(month_summary) + 1)
             st.dataframe(month_summary)
 
-
             if not expense_df.empty:
-                category_totals_expense = expense_df.groupby("category")["amount"].sum().reset_index()
-                category_totals_expense = category_totals_expense.sort_values("amount", ascending=False)
-
+                category_totals_expense = (
+                    expense_df.groupby("category")["amount"]
+                    .sum()
+                    .reset_index()
+                    .sort_values("amount", ascending=False)
+                )
+                st.subheader("Expenses by Category")
                 st.bar_chart(category_totals_expense.set_index("category"))
 
-                st.subheader("Category Breakdown")
-                for _, row in category_totals_expense.iterrows():
-                    st.write(f"**{row['category']}**: PKR {row['amount']:,.2f}")
+                st.subheader("Expense Breakdown")
+                exp_cols = st.columns(min(len(category_totals_expense), 3))
+                for i, (_, row) in enumerate(category_totals_expense.iterrows()):
+                    col = exp_cols[i % len(exp_cols)]
+                    col.metric(
+                        label=row["category"],
+                        value=f"PKR {row['amount']:,.2f}"
+                    )
             else:
                 st.info("No expenses recorded yet.")
 
             if not income_df.empty:
-                category_totals_income = income_df.groupby("category")["amount"].sum().reset_index()
-                category_totals_income = category_totals_income.sort_values("amount", ascending=False)
-
+                category_totals_income = (
+                    income_df.groupby("category")["amount"]
+                    .sum()
+                    .reset_index()
+                    .sort_values("amount", ascending=False)
+                )
+                st.subheader("Income by Category")
                 st.bar_chart(category_totals_income.set_index("category"))
 
-                st.subheader("Category Breakdown")
-                for _, row in category_totals_income.iterrows():
-                    st.write(f"**{row['category']}**: PKR {row['amount']:,.2f}")
+                st.subheader("Income Breakdown")
+                inc_cols = st.columns(min(len(category_totals_income), 3))
+                for i, (_, row) in enumerate(category_totals_income.iterrows()):
+                    col = inc_cols[i % len(inc_cols)]
+                    col.metric(
+                        label=row["category"],
+                        value=f"PKR {row['amount']:,.2f}"
+                    )
             else:
                 st.info("No income recorded yet.")
 
@@ -281,33 +302,91 @@ with main_tabs[1]:
             st.subheader("All Transactions")
             st.dataframe(df.drop(columns=["id"]))
 
+
         elif view == "📈 By Category":
+
             st.subheader("Expenses by Category")
+
             expense_df = df[df["type"] == "Expense"]
 
             if not expense_df.empty:
-                category_totals = expense_df.groupby("category")["amount"].sum().reset_index()
-                category_totals = category_totals.sort_values("amount", ascending=False)
+
+                category_totals = (
+
+                    expense_df.groupby("category")["amount"]
+
+                    .sum()
+
+                    .reset_index()
+
+                    .sort_values("amount", ascending=False)
+
+                )
 
                 st.bar_chart(category_totals.set_index("category"))
 
-                st.subheader("Expense Breakdown")
-                for _, row in category_totals.iterrows():
-                    st.write(f"**{row['category']}**: PKR {row['amount']:,.2f}")
             else:
+
                 st.info("No expenses recorded yet.")
 
             st.subheader("Income by Category")
+
             income_df = df[df["type"] == "Income"]
 
             if not income_df.empty:
-                income_category_totals = income_df.groupby("category")["amount"].sum().reset_index()
-                income_category_totals = income_category_totals.sort_values("amount", ascending=False)
-                st.subheader("Income Breakdown")
-                for _, row in income_category_totals.iterrows():
-                    st.write(f"**{row['category']}**: PKR {row['amount']:,.2f}")
+
+                income_category_totals = (
+
+                    income_df.groupby("category")["amount"]
+
+                    .sum()
+
+                    .reset_index()
+
+                    .sort_values("amount", ascending=False)
+
+                )
+
+                st.bar_chart(income_category_totals.set_index("category"))
+
             else:
+
                 st.info("No income recorded yet.")
+
+
+            if not expense_df.empty:
+
+                st.subheader("Expense Breakdown")
+
+                exp_cols = st.columns(min(len(category_totals), 3))
+
+                for i, (_, row) in enumerate(category_totals.iterrows()):
+                    col = exp_cols[i % len(exp_cols)]
+
+                    col.metric(
+
+                        label=row["category"],
+
+                        value=f"PKR {row['amount']:,.2f}"
+
+                    )
+
+            if not income_df.empty:
+
+                st.subheader("Income Breakdown")
+
+                inc_cols = st.columns(min(len(income_category_totals), 3))
+                for i, (_, row) in enumerate(income_category_totals.iterrows()):
+                    col = inc_cols[i % len(inc_cols)]
+
+                    col.metric(
+
+                        label=row["category"],
+
+                        value=f"PKR {row['amount']:,.2f}"
+
+                    )
+
 
         elif view == "❌ Delete":
             for idx, transaction in enumerate(transactions, start=1):
