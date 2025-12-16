@@ -60,6 +60,7 @@ with main_tabs[0]:
             "Bills & Utilities",
             "Healthcare",
             "Education",
+            "Savings",
             "Other"
         ])
     else:
@@ -68,7 +69,6 @@ with main_tabs[0]:
             "Freelance",
             "Business",
             "Investment",
-            "Savings",
             "Gift",
             "Other"
         ])
@@ -124,6 +124,11 @@ with main_tabs[1]:
         st.cache_data.clear()
         st.rerun()
 
+    if st.button("🚪 Logout"):
+        st.session_state.authenticated = False
+        st.success("Logged out successfully! 👋")
+        time.sleep(2)
+        st.rerun()
 
     @st.cache_data(ttl=120)
     def get_transactions():
@@ -387,23 +392,83 @@ with main_tabs[1]:
 
                     )
 
-
         elif view == "❌ Delete":
-            for idx, transaction in enumerate(transactions, start=1):
-                emoji = "➖" if transaction['type'] == "Expense" else "➕"
-                st.write(
-                    f"{emoji} {transaction['date']} | {transaction['type']} | {transaction['category']} | PKR {transaction['amount']:,}")
-                if st.button(f"🗑 Delete Transaction {idx}", key=f"delete_{transaction['id']}"):
-                    notion.pages.update(transaction["id"], archived=True)
-                    st.success(f"Deleted transaction from {transaction['date']}")
-                    st.cache_data.clear()
-                    time.sleep(2)
-                    st.rerun()
+
+            st.subheader("Delete Transactions")
+
+            def parse_date(date_value):
+                if isinstance(date_value, datetime):
+                    return date_value
+                return pd.to_datetime(date_value, errors="coerce")
+
+
+            with st.expander("💸 Expenses", expanded=True):
+
+                expense_transactions = [
+                    {**t, "parsed_date": parse_date(t["date"])}
+                    for t in transactions if t["type"] == "Expense"
+                ]
+
+                if expense_transactions:
+                    expense_df = pd.DataFrame(expense_transactions)
+                    expense_df["month"] = expense_df["parsed_date"].dt.to_period("M")
+                    expense_df = expense_df.sort_values("parsed_date", ascending=False)
+
+                    for month, month_df in expense_df.groupby("month"):
+                        with st.expander(f"📅 {month.strftime('%B %Y')}"):
+                            for idx, transaction in month_df.iterrows():
+                                with st.container():
+                                    st.markdown(
+                                        f"**➖ {transaction['parsed_date'].strftime('%d %B %Y')}**  \n"
+                                        f"Category: {transaction['category']}  |  "
+                                        f"Amount: PKR {transaction['amount']:,}"
+                                    )
+
+                                    if st.button(
+                                            "🗑 Delete Expense",
+                                            key=f"delete_exp_{transaction['id']}"
+                                    ):
+                                        notion.pages.update(transaction["id"], archived=True)
+                                        st.success("Expense deleted successfully")
+                                        st.cache_data.clear()
+                                        time.sleep(1)
+                                        st.rerun()
+                else:
+                    st.info("No expenses recorded yet.")
+
+            with st.expander("🤑 Income", expanded=True):
+
+                income_transactions = [
+                    {**t, "parsed_date": parse_date(t["date"])}
+                    for t in transactions if t["type"] == "Income"
+                ]
+
+                if income_transactions:
+                    income_df = pd.DataFrame(income_transactions)
+                    income_df["month"] = income_df["parsed_date"].dt.to_period("M")
+                    income_df = income_df.sort_values("parsed_date", ascending=False)
+                    for month, month_df in income_df.groupby("month"):
+                        with st.expander(f"📅 {month.strftime('%B %Y')}"):
+                            for idx, transaction in month_df.iterrows():
+                                with st.container():
+                                    st.markdown(
+                                        f"**➕ {transaction['parsed_date'].strftime('%d %B %Y')}**  \n"
+                                        f"Category: {transaction['category']}  |  "
+                                        f"Amount: PKR {transaction['amount']:,}"
+                                    )
+
+                                    if st.button(
+                                            "🗑 Delete Income",
+                                            key=f"delete_inc_{transaction['id']}"
+                                    ):
+                                        notion.pages.update(transaction["id"], archived=True)
+                                        st.success("Income deleted successfully")
+                                        st.cache_data.clear()
+                                        time.sleep(1)
+                                        st.rerun()
+                else:
+                    st.info("No income recorded yet.")
     else:
         st.info("❌ No transactions recorded yet.")
 
-    if st.button("🚪 Logout"):
-        st.session_state.authenticated = False
-        st.success("Logged out successfully! 👋")
-        time.sleep(2)
-        st.rerun()
+
