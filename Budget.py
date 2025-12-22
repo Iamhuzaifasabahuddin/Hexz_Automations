@@ -213,14 +213,15 @@ with main_tabs[1]:
             savings_df = df[df["category"] == "Savings"]
 
             col_a, col_b, col_c = st.columns(3)
-            col_a.metric("💰 Total Income", f"PKR {total_income:,.2f}")
-            col_b.metric("💸 Total Expenses", f"PKR {total_expense:,.2f}")
-            col_b.metric("💹 Total Savings", f"PKR {savings:,.2f}")
+            col_a.metric("💰 Total Income", f"PKR {total_income:,.2f}", chart_data=df[df["type"] == "Income"]["amount"], chart_type="area")
+            col_b.metric("💸 Total Expenses", f"PKR {total_expense:,.2f}", chart_data=df[df["type"] == "Expense"]["amount"], chart_type="area")
+            col_a.metric("💹 Total Savings", f"PKR {savings:,.2f}", delta=f"{savings / total_income: .1%}")
             col_c.metric(
                 "💵 Net Balance",
                 f"PKR {net_balance:,.2f}",
                 delta=f"{net_balance:,.2f}",
-                delta_color="normal"
+                delta_color="normal",
+                delta_arrow="off"
             )
 
             st.subheader("Income vs Expenses by Month")
@@ -228,6 +229,7 @@ with main_tabs[1]:
             month_pivot = month_summary.pivot(index="month", columns="type", values="amount").fillna(0)
             st.bar_chart(month_pivot)
             month_summary.index = range(1, len(month_summary) + 1)
+            month_summary["amount"] = month_summary["amount"].map("PKR {:,.2f}".format)
             st.dataframe(month_summary)
 
             if not expense_df.empty:
@@ -292,7 +294,10 @@ with main_tabs[1]:
                 filtered_df = df[df["month"] == selected_month]
 
             filtered_df.index = range(1, len(filtered_df) + 1)
-            st.write(filtered_df.drop(columns=["id"]))
+            df_show = filtered_df.copy()
+
+            df_show["amount"] = df_show["amount"].map("PKR {:,.2f}".format)
+            st.write(df_show.drop(columns=["id"]))
 
             income = filtered_df[filtered_df["type"] == "Income"]["amount"].sum()
             expense = filtered_df[filtered_df["type"] == "Expense"]["amount"].sum()
@@ -303,11 +308,13 @@ with main_tabs[1]:
             col_a.metric("💰 Income", f"PKR {income:,.2f}")
             col_b.metric("💸 Expenses", f"PKR {expense:,.2f}")
             col_c.metric("💵 Balance", f"PKR {balance:,.2f}")
-            col_c.metric("💹 Savings", f"PKR {savings:,.2f}")
+            col_a.metric("💹 Savings", f"PKR {savings:,.2f}")
 
         elif view == "📋 All Data":
             st.subheader("All Transactions")
-            st.dataframe(df.drop(columns=["id"]))
+            df_show = df.copy()
+            df_show["amount"] = df_show["amount"].map("PKR {:,.2f}".format)
+            st.dataframe(df_show.drop(columns=["id"]))
 
         elif view == "📈 By Category":
 
