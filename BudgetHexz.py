@@ -59,16 +59,16 @@ with main_tabs[0]:
             "Entertainment",
             "Bills & Utilities",
             "Healthcare",
-            "Education",
+            "Stocks",
+            "Mutual Fund",
             "Savings",
             "Other"
         ])
     else:
         category = st.selectbox("Category", [
             "Salary",
+            "Bonus",
             "Freelance",
-            "Business",
-            "Investment",
             "Gift",
             "Other"
         ])
