@@ -51,7 +51,7 @@ authenticator = stauth.Authenticate(
 )
 
 if st.session_state.get('authentication_status') is None:
-    st.title("🔑 Hexz Budget Tracker Login")
+    st.title("🔑 Hexz Ride Tracker Login")
 authenticator.login()
 
 if st.session_state.get('authentication_status') is True:
