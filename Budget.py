@@ -4,6 +4,7 @@ from datetime import datetime
 import pandas as pd
 import pytz
 import streamlit as st
+import streamlit_authenticator as stauth
 from notion_client import Client
 
 notion = Client(auth=st.secrets["notion_token_2"])
@@ -25,506 +26,435 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
+config = {
+    'credentials': {
+        'usernames': {
+            st.secrets["auth_username_tooba"]: {
+                'name': st.secrets["auth_name_tooba"],
+                'email': st.secrets["auth_email_tooba"],
+                'password': st.secrets["auth_password_tooba"]
+            }
+        }
+    },
+    'cookie': {
+        'name': st.secrets.get("cookie_name", "tooba_budget_cookie"),
+        'key': st.secrets["cookie_key"],
+        'expiry_days': st.secrets.get("cookie_expiry_days", 30)
+    }
+}
 
-if not st.session_state.authenticated:
-    st.title("🔑 Budget Tracker Login")
-    password = st.text_input("Enter Password", type="password")
-    if st.button("Login"):
-        if password == APP_PASSWORD:
-            st.session_state.authenticated = True
-            st.success("Login successful! 🎉")
-            time.sleep(2)
-            st.rerun()
+authenticator = stauth.Authenticate(
+    config['credentials'],
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days']
+)
+
+if st.session_state.get('authentication_status') is None:
+    st.title("🔑 Tooba Budget Tracker Login")
+authenticator.login()
+
+if st.session_state.get('authentication_status') is True:
+
+    st.title(f"💰 Welcome {st.session_state.get('name')}!")
+    authenticator.logout()
+
+    main_tabs = st.tabs(["💸 Add Transaction", "📊 View Budget"])
+
+    with main_tabs[0]:
+        st.header("💸 Add a Transaction")
+
+        pkt = pytz.timezone("Asia/Karachi")
+        now_pkt = datetime.now(pkt)
+
+        transaction_type = st.selectbox("Type", ["Expense", "Income"])
+
+        if transaction_type == "Expense":
+            category = st.selectbox("Category", [
+                "Food & Dining",
+                "Transportation",
+                "Shopping",
+                "Entertainment",
+                "Bills & Utilities",
+                "Healthcare",
+                "Education",
+                "Savings",
+                "Other"
+            ])
         else:
-            st.error("Incorrect password.")
-    st.stop()
+            category = st.selectbox("Category", [
+                "Salary",
+                "Freelance",
+                "Business",
+                "Investment",
+                "Gift",
+                "Other"
+            ])
 
-main_tabs = st.tabs(["💸 Add Transaction", "📊 View Budget"])
+        with st.form("transaction_form", clear_on_submit=False):
+            transaction_date = st.date_input("Date", now_pkt.date())
+            transaction_time = st.time_input("Time", now_pkt.time(), key="transaction_time")
+            amount = st.number_input("Amount (PKR)", min_value=0, step=50)
+            description = st.text_input("Description (Optional)")
 
-with main_tabs[0]:
-    st.header("💸 Add a Transaction")
+            preview = st.form_submit_button("Preview Transaction")
+            submitted = st.form_submit_button("Save Transaction")
 
-    pkt = pytz.timezone("Asia/Karachi")
-    now_pkt = datetime.now(pkt)
+        if preview:
+            transaction_dt = datetime.combine(transaction_date, transaction_time)
+            transaction_dt_pkt = pkt.localize(transaction_dt)
+            formatted_dt = transaction_dt_pkt.strftime("%d-%m-%Y at %I:%M %p")
+            emoji = "➖" if transaction_type == "Expense" else "➕"
+            st.info(f"Preview {emoji} {transaction_type}: {category} | {formatted_dt} | PKR {amount:,}")
 
-    transaction_type = st.selectbox("Type", ["Expense", "Income"])
-
-    if transaction_type == "Expense":
-        category = st.selectbox("Category", [
-            "Food & Dining",
-            "Transportation",
-            "Shopping",
-            "Entertainment",
-            "Bills & Utilities",
-            "Healthcare",
-            "Education",
-            "Savings",
-            "Other"
-        ])
-    else:
-        category = st.selectbox("Category", [
-            "Salary",
-            "Freelance",
-            "Business",
-            "Investment",
-            "Gift",
-            "Other"
-        ])
-    with st.form("transaction_form", clear_on_submit=False):
-
-        transaction_date = st.date_input("Date", now_pkt.date())
-        transaction_time = st.time_input("Time", now_pkt.time(), key="transaction_time")
-        amount = st.number_input("Amount (PKR)", min_value=0, step=50)
-        description = st.text_input("Description (Optional)")
-
-        preview = st.form_submit_button("Preview Transaction")
-        submitted = st.form_submit_button("Save Transaction")
-
-    if preview:
-        transaction_dt = datetime.combine(transaction_date, transaction_time)
-        transaction_dt_pkt = pkt.localize(transaction_dt)
-        formatted_dt = transaction_dt_pkt.strftime("%d-%m-%Y at %I:%M %p")
-        emoji = "➖" if transaction_type == "Expense" else "➕"
-        st.info(f"Preview {emoji} {transaction_type}: {category} | {formatted_dt} | PKR {amount:,}")
-
-    if submitted:
-        if amount > 0 and category and transaction_type:
-            month = transaction_date.strftime("%B %Y")
-            formatted_time = transaction_time.strftime("%I:%M %p")
-            try:
-                notion.pages.create(
-                    parent={"database_id": database_id},
-                    properties={
-                        "Name": {
-                            "title": [
-                                {"text": {"content": f"{transaction_type} - {category} ({transaction_date})"}}
-                            ]
+        if submitted:
+            if amount > 0 and category and transaction_type:
+                month = transaction_date.strftime("%B %Y")
+                formatted_time = transaction_time.strftime("%I:%M %p")
+                try:
+                    notion.pages.create(
+                        parent={"database_id": database_id},
+                        properties={
+                            "Name": {
+                                "title": [
+                                    {"text": {"content": f"{transaction_type} - {category} ({transaction_date})"}}
+                                ]
+                            },
+                            "Type": {"select": {"name": transaction_type}},
+                            "Category": {"rich_text": [{"text": {"content": category}}]},
+                            "Date": {"date": {"start": transaction_date.isoformat()}},
+                            "Time": {"rich_text": [{"text": {"content": formatted_time}}]},
+                            "Amount": {"number": amount},
+                            "Month": {"rich_text": [{"text": {"content": month}}]},
+                            "Description": {"rich_text": [{"text": {"content": description if description else ""}}]},
                         },
-                        "Type": {"select": {"name": transaction_type}},
-                        "Category": {"rich_text": [{"text": {"content": category}}]},
-                        "Date": {"date": {"start": transaction_date.isoformat()}},
-                        "Time": {"rich_text": [{"text": {"content": formatted_time}}]},
-                        "Amount": {"number": amount},
-                        "Month": {"rich_text": [{"text": {"content": month}}]},
-                        "Description": {"rich_text": [{"text": {"content": description if description else ""}}]},
-                    },
-                )
-                st.success(
-                    f"{transaction_type} - {category} @ {transaction_date} - {formatted_time} saved to Notion! ✅")
-                st.balloons()
-            except Exception as e:
-                st.error(f"Error: {e}")
-        else:
-            st.warning("Missing or Invalid Data Detected!")
-with main_tabs[1]:
-    st.header("📊 Budget Overview")
-
-    if st.button("🔄 Refresh Data"):
-        st.cache_data.clear()
-        st.rerun()
-
-    if st.button("🚪 Logout"):
-        st.session_state.authenticated = False
-        st.success("Logged out successfully! 👋")
-        time.sleep(2)
-        st.rerun()
-
-
-    @st.cache_data(ttl=120)
-    def get_transactions():
-        transactions = []
-        has_more = True
-        start_cursor = None
-
-        while has_more:
-            if start_cursor:
-                data = notion.data_sources.query(
-                    data_source_id=datasource_id,
-                    start_cursor=start_cursor
-                )
+                    )
+                    st.success(
+                        f"{transaction_type} - {category} @ {transaction_date} - {formatted_time} saved to Notion! ✅")
+                except Exception as e:
+                    st.error(f"Error: {e}")
             else:
-                data = notion.data_sources.query(data_source_id=datasource_id)
+                st.warning("Missing or Invalid Data Detected!")
 
-            for row in data["results"]:
-                props = row["properties"]
+    with main_tabs[1]:
+        st.header("📊 Budget Overview")
 
-                transaction_date = props["Date"]["date"]["start"] if props["Date"]["date"] else None
-                amount = props["Amount"]["number"] if props["Amount"]["number"] else 0
-                month = (
-                    props["Month"]["rich_text"][0]["text"]["content"]
-                    if props["Month"]["rich_text"] else "Unknown"
-                )
-                transaction_time = (
-                    props["Time"]["rich_text"][0]["text"]["content"]
-                    if props["Time"]["rich_text"] else "Unknown"
-                )
-                transaction_type = (
-                    props["Type"]["select"]["name"]
-                    if props["Type"]["select"] else "Unknown"
-                )
-                category = (
-                    props["Category"]["rich_text"][0]["text"]["content"]
-                    if props["Category"]["rich_text"] else "Unknown"
-                )
-                description = (
-                    props["Description"]["rich_text"][0]["text"]["content"]
-                    if props["Description"]["rich_text"] else ""
-                )
-
-                transactions.append({
-                    "id": row["id"],
-                    "date": transaction_date,
-                    "time": transaction_time,
-                    "type": transaction_type,
-                    "category": category,
-                    "amount": amount,
-                    "month": month,
-                    "description": description
-                })
-            has_more = data.get("has_more", False)
-            start_cursor = data.get("next_cursor")
-
-        return transactions
+        if st.button("🔄 Refresh Data"):
+            st.cache_data.clear()
+            st.rerun()
 
 
-    transactions = get_transactions()
+        @st.cache_data(ttl=120)
+        def get_transactions():
+            transactions = []
+            has_more = True
+            start_cursor = None
 
-    if transactions:
-        df = pd.DataFrame(transactions)
-        df.index = range(1, len(transactions) + 1)
+            while has_more:
+                if start_cursor:
+                    data = notion.data_sources.query(
+                        data_source_id=datasource_id,
+                        start_cursor=start_cursor
+                    )
+                else:
+                    data = notion.data_sources.query(data_source_id=datasource_id)
 
-        view = st.radio(
-            "Select View",
-            ["📅 By Month", "📊 Dashboard", "📋 All Data", "📈 By Category", "❌ Delete"],
-            horizontal=True
-        )
+                for row in data["results"]:
+                    props = row["properties"]
 
-        if view == "📊 Dashboard":
-            st.subheader("Financial Dashboard")
-            total_income = df[df["type"] == "Income"]["amount"].sum()
-            total_expense = df[df["type"] == "Expense"]["amount"].sum()
-            savings = df[df["category"] == "Savings"]["amount"].sum()
-            net_balance = total_income - total_expense
+                    transaction_date = props["Date"]["date"]["start"] if props["Date"]["date"] else None
+                    amount = props["Amount"]["number"] if props["Amount"]["number"] else 0
+                    month = (
+                        props["Month"]["rich_text"][0]["text"]["content"]
+                        if props["Month"]["rich_text"] else "Unknown"
+                    )
+                    transaction_time = (
+                        props["Time"]["rich_text"][0]["text"]["content"]
+                        if props["Time"]["rich_text"] else "Unknown"
+                    )
+                    transaction_type = (
+                        props["Type"]["select"]["name"]
+                        if props["Type"]["select"] else "Unknown"
+                    )
+                    category = (
+                        props["Category"]["rich_text"][0]["text"]["content"]
+                        if props["Category"]["rich_text"] else "Unknown"
+                    )
+                    description = (
+                        props["Description"]["rich_text"][0]["text"]["content"]
+                        if props["Description"]["rich_text"] else ""
+                    )
 
-            expense_df = df[df["type"] == "Expense"]
-            income_df = df[df["type"] == "Income"]
-            savings_df = df[df["category"] == "Savings"]
+                    transactions.append({
+                        "id": row["id"],
+                        "date": transaction_date,
+                        "time": transaction_time,
+                        "type": transaction_type,
+                        "category": category,
+                        "amount": amount,
+                        "month": month,
+                        "description": description
+                    })
+                has_more = data.get("has_more", False)
+                start_cursor = data.get("next_cursor")
 
-            col_a, col_b, col_c = st.columns(3)
-            col_a.metric("💰 Total Income", f"PKR {total_income:,.2f}", chart_data=df[df["type"] == "Income"]["amount"], chart_type="area")
-            col_b.metric("💸 Total Expenses", f"PKR {total_expense:,.2f}", chart_data=df[df["type"] == "Expense"]["amount"], chart_type="area")
-            col_a.metric("💹 Total Savings", f"PKR {savings:,.2f}", delta=f"{savings / total_income: .1%}")
-            col_c.metric(
-                "💵 Net Balance",
-                f"PKR {net_balance:,.2f}",
-                delta=f"{net_balance:,.2f}",
-                delta_color="normal",
-                delta_arrow="off"
+            return transactions
+
+
+        transactions = get_transactions()
+
+        if transactions:
+            df = pd.DataFrame(transactions)
+            df.index = range(1, len(transactions) + 1)
+
+            view = st.radio(
+                "Select View",
+                ["📅 By Month", "📊 Dashboard", "📋 All Data", "📈 By Category", "❌ Delete"],
+                horizontal=True
             )
 
-            st.subheader("Income vs Expenses by Month")
-            month_summary = df.groupby(["month", "type"])["amount"].sum().reset_index()
-            month_pivot = month_summary.pivot(index="month", columns="type", values="amount").fillna(0)
-            st.bar_chart(month_pivot)
-            month_summary.index = range(1, len(month_summary) + 1)
-            month_summary["amount"] = month_summary["amount"].map("PKR {:,.2f}".format)
-            st.dataframe(month_summary)
+            if view == "📊 Dashboard":
+                st.subheader("Financial Dashboard")
+                total_income = df[df["type"] == "Income"]["amount"].sum()
+                total_expense = df[df["type"] == "Expense"]["amount"].sum()
+                savings = df[df["category"] == "Savings"]["amount"].sum()
+                net_balance = total_income - total_expense
 
-            if not expense_df.empty:
-                category_totals_expense = (
-                    expense_df.groupby("category")["amount"]
-                    .sum()
-                    .reset_index()
-                    .sort_values("amount", ascending=False)
-                )
-                st.subheader("Expenses by Category")
-                st.bar_chart(category_totals_expense.set_index("category"))
+                expense_df = df[df["type"] == "Expense"]
+                income_df = df[df["type"] == "Income"]
 
-                st.subheader("Expense Breakdown")
-                exp_cols = st.columns(min(len(category_totals_expense), 3))
-                for i, (_, row) in enumerate(category_totals_expense.iterrows()):
-                    col = exp_cols[i % len(exp_cols)]
-                    col.metric(
-                        label=row["category"],
-                        value=f"PKR {row['amount']:,.2f}"
-                    )
-            else:
-                st.info("No expenses recorded yet.")
-
-            if not income_df.empty:
-                category_totals_income = (
-                    income_df.groupby("category")["amount"]
-                    .sum()
-                    .reset_index()
-                    .sort_values("amount", ascending=False)
-                )
-                st.subheader("Income by Category")
-                st.bar_chart(category_totals_income.set_index("category"))
-
-                st.subheader("Income Breakdown")
-                inc_cols = st.columns(min(len(category_totals_income), 3))
-                for i, (_, row) in enumerate(category_totals_income.iterrows()):
-                    col = inc_cols[i % len(inc_cols)]
-                    col.metric(
-                        label=row["category"],
-                        value=f"PKR {row['amount']:,.2f}"
-                    )
-            else:
-                st.info("No income recorded yet.")
-
-
-
-
-        elif view == "📅 By Month":
-            st.subheader("Filter by Month")
-
-            unique_months = sorted(df["month"].unique())
-            months = ["All"] + list(unique_months)
-            current_month = datetime.now(pkt).strftime("%B %Y")
-            if current_month in unique_months:
-                default_index = unique_months.index(current_month) + 1
-            else:
-                default_index = 0
-            selected_month = st.selectbox("Choose a month", months, index=default_index)
-            if selected_month == "All":
-                filtered_df = df
-            else:
-                filtered_df = df[df["month"] == selected_month]
-
-            filtered_df.index = range(1, len(filtered_df) + 1)
-            df_show = filtered_df.copy()
-
-            df_show["amount"] = df_show["amount"].map("PKR {:,.2f}".format)
-            st.write(df_show.drop(columns=["id"]))
-
-            income = filtered_df[filtered_df["type"] == "Income"]["amount"].sum()
-            expense = filtered_df[filtered_df["type"] == "Expense"]["amount"].sum()
-            savings = filtered_df[filtered_df["category"] == "Savings"]["amount"].sum()
-            balance = income - expense
-
-            col_a, col_b, col_c = st.columns(3)
-            col_a.metric("💰 Income", f"PKR {income:,.2f}")
-            col_b.metric("💸 Expenses", f"PKR {expense:,.2f}")
-            col_c.metric("💵 Balance", f"PKR {balance:,.2f}")
-            col_a.metric("💹 Savings", f"PKR {savings:,.2f}")
-
-        elif view == "📋 All Data":
-            st.subheader("All Transactions")
-            df_show = df.copy()
-            df_show["amount"] = df_show["amount"].map("PKR {:,.2f}".format)
-            st.dataframe(df_show.drop(columns=["id"]))
-
-        elif view == "📈 By Category":
-
-            st.subheader("Expenses by Category")
-
-            expense_df = df[df["type"] == "Expense"]
-
-            if not expense_df.empty:
-
-                category_totals = (
-
-                    expense_df.groupby("category")["amount"]
-
-                    .sum()
-
-                    .reset_index()
-
-                    .sort_values("amount", ascending=False)
-
+                col_a, col_b, col_c = st.columns(3)
+                col_a.metric("💰 Total Income", f"PKR {total_income:,.2f}")
+                col_b.metric("💸 Total Expenses", f"PKR {total_expense:,.2f}")
+                col_a.metric("💹 Total Savings", f"PKR {savings:,.2f}",
+                             delta=f"{savings / total_income * 100:.1f}%" if total_income > 0 else "0%")
+                col_c.metric(
+                    "💵 Net Balance",
+                    f"PKR {net_balance:,.2f}",
+                    delta=f"{net_balance:,.2f}",
+                    delta_arrow="off"
                 )
 
-                st.bar_chart(category_totals.set_index("category"))
+                st.subheader("Income vs Expenses by Month")
+                month_summary = df.groupby(["month", "type"])["amount"].sum().reset_index()
+                month_pivot = month_summary.pivot(index="month", columns="type", values="amount").fillna(0)
+                st.bar_chart(month_pivot)
+                month_summary.index = range(1, len(month_summary) + 1)
+                month_summary["amount"] = month_summary["amount"].map("PKR {:,.2f}".format)
+                st.dataframe(month_summary)
 
-            else:
-
-                st.info("No expenses recorded yet.")
-
-            st.subheader("Income by Category")
-
-            income_df = df[df["type"] == "Income"]
-
-            if not income_df.empty:
-
-                income_category_totals = (
-
-                    income_df.groupby("category")["amount"]
-
-                    .sum()
-
-                    .reset_index()
-
-                    .sort_values("amount", ascending=False)
-
-                )
-
-                st.bar_chart(income_category_totals.set_index("category"))
-
-            else:
-
-                st.info("No income recorded yet.")
-
-            if not expense_df.empty:
-
-                st.subheader("Expense Breakdown")
-
-                exp_cols = st.columns(min(len(category_totals), 3))
-
-                for i, (_, row) in enumerate(category_totals.iterrows()):
-                    col = exp_cols[i % len(exp_cols)]
-
-                    col.metric(
-
-                        label=row["category"],
-
-                        value=f"PKR {row['amount']:,.2f}"
-
+                if not expense_df.empty:
+                    category_totals_expense = (
+                        expense_df.groupby("category")["amount"]
+                        .sum()
+                        .reset_index()
+                        .sort_values("amount", ascending=False)
                     )
-            if not income_df.empty:
+                    st.subheader("Expenses by Category")
+                    st.bar_chart(category_totals_expense.set_index("category"))
 
-                st.subheader("Income Breakdown")
-
-                inc_cols = st.columns(min(len(income_category_totals), 3))
-
-                for i, (_, row) in enumerate(income_category_totals.iterrows()):
-                    col = inc_cols[i % len(inc_cols)]
-
-                    col.metric(
-
-                        label=row["category"],
-
-                        value=f"PKR {row['amount']:,.2f}"
-
-                    )
-
-
-
-        elif view == "❌ Delete":
-
-            st.subheader("Delete Transactions")
-
-
-            def parse_date(date_value):
-
-                if isinstance(date_value, datetime):
-                    return date_value
-
-                return pd.to_datetime(date_value, errors="coerce")
-
-
-            with st.expander("💸 Expenses", expanded=True):
-
-                expense_transactions = [
-
-                    {**t, "parsed_date": parse_date(t["date"])}
-
-                    for t in transactions if t["type"] == "Expense"
-
-                ]
-
-                if expense_transactions:
-
-                    expense_df = pd.DataFrame(expense_transactions)
-
-                    expense_df["month"] = expense_df["parsed_date"].dt.to_period("M")
-
-                    expense_df = expense_df.sort_values("parsed_date", ascending=False)
-
-                    for month, month_df in expense_df.groupby("month"):
-
-                        with st.expander(f"📅 {month.strftime('%B %Y')}"):
-
-                            for idx, transaction in month_df.iterrows():
-
-                                with st.container():
-
-                                    st.markdown(
-
-                                        f"**➖ {transaction['parsed_date'].strftime('%d %B %Y')}**  \n"
-
-                                        f"Category: {transaction['category']}  |  "
-
-                                        f"Amount: PKR {transaction['amount']:,}"
-
-                                    )
-
-                                    if st.button(
-
-                                            "🗑 Delete Expense",
-
-                                            key=f"delete_exp_{transaction['id']}"
-
-                                    ):
-                                        notion.pages.update(transaction["id"], archived=True)
-
-                                        st.success("Expense deleted successfully")
-
-                                        st.cache_data.clear()
-
-                                        time.sleep(1)
-
-                                        st.rerun()
-
+                    st.subheader("Expense Breakdown")
+                    exp_cols = st.columns(min(len(category_totals_expense), 3))
+                    for i, (_, row) in enumerate(category_totals_expense.iterrows()):
+                        col = exp_cols[i % len(exp_cols)]
+                        col.metric(
+                            label=row["category"],
+                            value=f"PKR {row['amount']:,.2f}"
+                        )
                 else:
-
                     st.info("No expenses recorded yet.")
 
-            with st.expander("🤑 Income", expanded=True):
+                if not income_df.empty:
+                    category_totals_income = (
+                        income_df.groupby("category")["amount"]
+                        .sum()
+                        .reset_index()
+                        .sort_values("amount", ascending=False)
+                    )
+                    st.subheader("Income by Category")
+                    st.bar_chart(category_totals_income.set_index("category"))
 
-                income_transactions = [
-
-                    {**t, "parsed_date": parse_date(t["date"])}
-
-                    for t in transactions if t["type"] == "Income"
-
-                ]
-
-                if income_transactions:
-
-                    income_df = pd.DataFrame(income_transactions)
-
-                    income_df["month"] = income_df["parsed_date"].dt.to_period("M")
-
-                    st.dataframe(income_df)
-
-                    income_df = income_df.sort_values("parsed_date", ascending=False)
-
-                    for month, month_df in income_df.groupby("month"):
-
-                        with st.expander(f"📅 {month.strftime('%B %Y')}"):
-
-                            for idx, transaction in month_df.iterrows():
-
-                                with st.container():
-
-                                    st.markdown(
-
-                                        f"**➕ {transaction['parsed_date'].strftime('%d %B %Y')}**  \n"
-
-                                        f"Category: {transaction['category']}  |  "
-
-                                        f"Amount: PKR {transaction['amount']:,}"
-
-                                    )
-
-                                    if st.button(
-
-                                            "🗑 Delete Income",
-
-                                            key=f"delete_inc_{transaction['id']}"
-
-                                    ):
-                                        notion.pages.update(transaction["id"], archived=True)
-
-                                        st.success("Income deleted successfully")
-                                        st.cache_data.clear()
-                                        time.sleep(1)
-                                        st.rerun()
-
+                    st.subheader("Income Breakdown")
+                    inc_cols = st.columns(min(len(category_totals_income), 3))
+                    for i, (_, row) in enumerate(category_totals_income.iterrows()):
+                        col = inc_cols[i % len(inc_cols)]
+                        col.metric(
+                            label=row["category"],
+                            value=f"PKR {row['amount']:,.2f}"
+                        )
                 else:
-
                     st.info("No income recorded yet.")
-    else:
-        st.info("❌ No transactions recorded yet.")
+
+            elif view == "📅 By Month":
+                st.subheader("Filter by Month")
+
+                pkt = pytz.timezone("Asia/Karachi")
+                unique_months = sorted(df["month"].unique())
+                months = ["All"] + list(unique_months)
+                current_month = datetime.now(pkt).strftime("%B %Y")
+                if current_month in unique_months:
+                    default_index = unique_months.index(current_month) + 1
+                else:
+                    default_index = 0
+                selected_month = st.selectbox("Choose a month", months, index=default_index)
+                if selected_month == "All":
+                    filtered_df = df
+                else:
+                    filtered_df = df[df["month"] == selected_month]
+
+                filtered_df.index = range(1, len(filtered_df) + 1)
+                df_show = filtered_df.copy()
+
+                df_show["amount"] = df_show["amount"].map("PKR {:,.2f}".format)
+                st.write(df_show.drop(columns=["id"]))
+
+                income = filtered_df[filtered_df["type"] == "Income"]["amount"].sum()
+                expense = filtered_df[filtered_df["type"] == "Expense"]["amount"].sum()
+                savings = filtered_df[filtered_df["category"] == "Savings"]["amount"].sum()
+                balance = income - expense
+
+                col_a, col_b, col_c = st.columns(3)
+                col_a.metric("💰 Income", f"PKR {income:,.2f}")
+                col_b.metric("💸 Expenses", f"PKR {expense:,.2f}")
+                col_c.metric("💵 Balance", f"PKR {balance:,.2f}")
+                col_a.metric("💹 Savings", f"PKR {savings:,.2f}")
+
+            elif view == "📋 All Data":
+                st.subheader("All Transactions")
+                df_show = df.copy()
+                df_show["amount"] = df_show["amount"].map("PKR {:,.2f}".format)
+                st.dataframe(df_show.drop(columns=["id"]))
+
+            elif view == "📈 By Category":
+                st.subheader("Expenses by Category")
+
+                expense_df = df[df["type"] == "Expense"]
+
+                if not expense_df.empty:
+                    category_totals = (
+                        expense_df.groupby("category")["amount"]
+                        .sum()
+                        .reset_index()
+                        .sort_values("amount", ascending=False)
+                    )
+                    st.bar_chart(category_totals.set_index("category"))
+                else:
+                    st.info("No expenses recorded yet.")
+
+                st.subheader("Income by Category")
+
+                income_df = df[df["type"] == "Income"]
+
+                if not income_df.empty:
+                    income_category_totals = (
+                        income_df.groupby("category")["amount"]
+                        .sum()
+                        .reset_index()
+                        .sort_values("amount", ascending=False)
+                    )
+                    st.bar_chart(income_category_totals.set_index("category"))
+                else:
+                    st.info("No income recorded yet.")
+
+                if not expense_df.empty:
+                    st.subheader("Expense Breakdown")
+                    exp_cols = st.columns(min(len(category_totals), 3))
+                    for i, (_, row) in enumerate(category_totals.iterrows()):
+                        col = exp_cols[i % len(exp_cols)]
+                        col.metric(
+                            label=row["category"],
+                            value=f"PKR {row['amount']:,.2f}"
+                        )
+
+                if not income_df.empty:
+                    st.subheader("Income Breakdown")
+                    inc_cols = st.columns(min(len(income_category_totals), 3))
+                    for i, (_, row) in enumerate(income_category_totals.iterrows()):
+                        col = inc_cols[i % len(inc_cols)]
+                        col.metric(
+                            label=row["category"],
+                            value=f"PKR {row['amount']:,.2f}"
+                        )
+
+            elif view == "❌ Delete":
+                st.subheader("Delete Transactions")
+
+
+                def parse_date(date_value):
+                    if isinstance(date_value, datetime):
+                        return date_value
+                    return pd.to_datetime(date_value, errors="coerce")
+
+
+                with st.expander("💸 Expenses", expanded=True):
+                    expense_transactions = [
+                        {**t, "parsed_date": parse_date(t["date"])}
+                        for t in transactions if t["type"] == "Expense"
+                    ]
+
+                    if expense_transactions:
+                        expense_df = pd.DataFrame(expense_transactions)
+                        expense_df["month"] = expense_df["parsed_date"].dt.to_period("M")
+                        expense_df = expense_df.sort_values("parsed_date", ascending=False)
+
+                        for month, month_df in expense_df.groupby("month"):
+                            with st.expander(f"📅 {month.strftime('%B %Y')}"):
+                                for idx, transaction in month_df.iterrows():
+                                    with st.container():
+                                        st.markdown(
+                                            f"**➖ {transaction['parsed_date'].strftime('%d %B %Y')}**  \n"
+                                            f"Category: {transaction['category']}  |  "
+                                            f"Amount: PKR {transaction['amount']:,}"
+                                        )
+
+                                        if st.button(
+                                                "🗑 Delete Expense",
+                                                key=f"delete_exp_{transaction['id']}"
+                                        ):
+                                            notion.pages.update(transaction["id"], archived=True)
+                                            st.success("Expense deleted successfully")
+                                            st.cache_data.clear()
+                                            time.sleep(1)
+                                            st.rerun()
+                    else:
+                        st.info("No expenses recorded yet.")
+
+                with st.expander("🤑 Income", expanded=True):
+                    income_transactions = [
+                        {**t, "parsed_date": parse_date(t["date"])}
+                        for t in transactions if t["type"] == "Income"
+                    ]
+
+                    if income_transactions:
+                        income_df = pd.DataFrame(income_transactions)
+                        income_df["month"] = income_df["parsed_date"].dt.to_period("M")
+                        income_df = income_df.sort_values("parsed_date", ascending=False)
+                        for month, month_df in income_df.groupby("month"):
+                            with st.expander(f"📅 {month.strftime('%B %Y')}"):
+                                for idx, transaction in month_df.iterrows():
+                                    with st.container():
+                                        st.markdown(
+                                            f"**➕ {transaction['parsed_date'].strftime('%d %B %Y')}**  \n"
+                                            f"Category: {transaction['category']}  |  "
+                                            f"Amount: PKR {transaction['amount']:,}"
+                                        )
+
+                                        if st.button(
+                                                "🗑 Delete Income",
+                                                key=f"delete_inc_{transaction['id']}"
+                                        ):
+                                            notion.pages.update(transaction["id"], archived=True)
+                                            st.success("Income deleted successfully")
+                                            st.cache_data.clear()
+                                            time.sleep(1)
+                                            st.rerun()
+                    else:
+                        st.info("No income recorded yet.")
+        else:
+            st.info("❌ No transactions recorded yet.")
+elif st.session_state.get('authentication_status') is False:
+    st.error('Username/password is incorrect')
+    st.stop()
+elif st.session_state.get('authentication_statkus') is None:
+    st.warning('Please enter your username and password')
+    st.stop()
