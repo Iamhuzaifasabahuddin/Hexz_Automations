@@ -2,7 +2,7 @@ name: Monthly Ride Summary
 
 on:
   schedule:
-    - cron: '0 19 1 * *'
+    - cron: '0 23 31 * *'
   
   workflow_dispatch:
 
@@ -19,17 +19,16 @@ jobs:
         with:
           python-version: '3.11'
 
-
       - name: Install dependencies
         run: |
           pip install notion-client
       
       - name: Send monthly summary
         env:
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN2 }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID2 }}
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
           SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
-          NOTION_DATASOURCE_ID: ${{ secrets.NOTION_DATASOURCE_ID }}
-        run: python send_summary.py
+          NOTION_DATASOURCE_ID: ${{ secrets.NOTION_DATASOURCE_ID2 }}
+        run: python send_budget_summary.py

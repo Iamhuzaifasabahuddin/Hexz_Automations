@@ -85,7 +85,7 @@ if st.session_state.get('authentication_status') is True:
             category = st.selectbox("Category", [
                 "Salary",
                 "Freelance",
-                "Business",
+                "Bonus",
                 "Investment",
                 "Gift",
                 "Other"
