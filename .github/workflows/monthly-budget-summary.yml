@@ -1,8 +1,8 @@
-name: Monthly Ride Summary
+name: Monthly Budget Summary
 
 on:
   schedule:
-    - cron: '0 23 31 * *'
+    - cron: '0 0 1 * *'
   
   workflow_dispatch:
 
