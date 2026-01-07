@@ -8,7 +8,6 @@ from email.mime.multipart import MIMEMultipart
 
 # Initialize Notion client
 notion = Client(auth=os.environ["NOTION_TOKEN"])
-database_id = os.environ["NOTION_DATABASE_ID"]
 datasource_id = os.environ["NOTION_DATASOURCE_ID"]
 
 
