@@ -6,3 +6,4 @@ Test.py
 
 .misc
 Test2.py
+*.env

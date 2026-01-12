@@ -10,7 +10,6 @@ from notion_client import Client
 notion = Client(auth=st.secrets["notion_token"])
 database_id = st.secrets["database_id"]
 datasource_id = st.secrets["datasource_id"]
-APP_PASSWORD = st.secrets["app_password"]
 
 st.set_page_config(
     page_title="Hexz Ride App",
@@ -40,24 +39,27 @@ config = {
         'name': st.secrets.get("cookie_name", "hexz_budget_cookie"),
         'key': st.secrets["cookie_key"],
         'expiry_days': st.secrets.get("cookie_expiry_days", 30)
+    },
+    'preauthorized': {
+        'emails': []
     }
 }
-stauth.Hasher.hash_passwords(config['credentials'])
 authenticator = stauth.Authenticate(
     config['credentials'],
     config['cookie']['name'],
     config['cookie']['key'],
-    config['cookie']['expiry_days']
+    config['cookie']['expiry_days'],
+    config['preauthorized']
 )
 
 if st.session_state.get('authentication_status') is None:
     st.title("🔑 Hexz Ride Tracker Login")
-authenticator.login()
+authenticator.login(location="main")
 
 if st.session_state.get('authentication_status') is True:
 
     st.title(f"💰 Welcome {st.session_state.get('name')}!")
-    authenticator.logout()
+    authenticator.logout(location="main")
 
     col1, col2 = st.columns([8, 2])
 
@@ -93,7 +95,7 @@ if st.session_state.get('authentication_status') is True:
 
                     try:
                         response = notion.pages.create(
-                            parent={"database_id": database_id},
+                            parent={"data_source_id": datasource_id},
                             properties={
                                 "Name": {
                                     "title": [
@@ -368,7 +370,7 @@ if st.session_state.get('authentication_status') is True:
                     display_df.columns = ["Date", "Time", "Amount (PKR)", "Month", "Year"]
                     display_df.index = range(1, len(display_df) + 1)
                     
-                    st.dataframe(display_df, use_container_width=True)
+                    st.dataframe(display_df, width='stretch')
                     
                     # Chart
                     st.subheader("Spending Over Time")
