@@ -47,9 +47,9 @@ config = {
 
 authenticator = stauth.Authenticate(
     config['credentials'],
-    "hexz_budget_cookie",
-    "52f895f241982128a7b5b69eab51721e",
-    30,
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days'],
     auto_hash=False
 )
 
