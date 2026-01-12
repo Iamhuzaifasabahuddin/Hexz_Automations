@@ -62,7 +62,7 @@ if st.session_state.get('authentication_status') is True:
     if st.button("🚪 Logout"):
         authenticator.logout()
 
-    col1, col2 = st.columns([8, 2])
+    col1, col2 = st.columns(2)
 
     with col1:
         main_tabs = st.tabs(["🚖 Add Ride", "📊 View Rides", "🔍 Search & Filter"])
