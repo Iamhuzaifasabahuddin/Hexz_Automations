@@ -1,0 +1,13 @@
+cookie:
+  expiry_days: 30
+  key: 52f895f241982128a7b5b69eab51721e
+  name: Appcookie
+credentials:
+  usernames:
+    Hexz:
+      email: huzaifasabah@gmail.com
+      failed_login_attempts: 0 # Will be managed automatically
+      first_name: Huzaifa
+      last_name: Sabah
+      logged_in: False # Will be managed automatically
+      password: $2b$12$s5r2xCJdt2FFfNaYOlNhiu3B11TWfBEbnStRmoenFCzX5X5hCzawK

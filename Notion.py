@@ -5,7 +5,9 @@ import pandas as pd
 import pytz
 import streamlit as st
 import streamlit_authenticator as stauth
+import yaml
 from notion_client import Client
+from yaml.loader import SafeLoader
 
 notion = Client(auth=st.secrets["notion_token"])
 datasource_id = st.secrets["datasource_id"]
@@ -24,32 +26,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-cookie_name = st.secrets.get("cookie_name", "hexz_budget_cookie")
-cookie_key = st.secrets["cookie_key"]
-cookie_expiry_days = int(st.secrets.get("cookie_expiry_days", 30))
-
-config = {
-    'credentials': {
-        'usernames': {
-            st.secrets["auth_username_hexz"]: {
-                'name': st.secrets["auth_name_hexz"],
-                'email': st.secrets["auth_email_hexz"],
-                'password': st.secrets["auth_password_hexz"]
-            }
-        }
-    },
-    'cookie': {
-        'name': cookie_name,
-        'key': cookie_key,
-        'expiry_days': cookie_expiry_days
-    }
-}
+with open('config.yaml') as file:
+    config = yaml.load(file, Loader=SafeLoader)
 
 authenticator = stauth.Authenticate(
     config['credentials'],
     config['cookie']['name'],
     config['cookie']['key'],
     config['cookie']['expiry_days'],
+    auto_hash=False
 )
 
 
