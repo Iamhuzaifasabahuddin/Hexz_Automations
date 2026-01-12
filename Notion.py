@@ -42,7 +42,7 @@ config = {
         'expiry_days': st.secrets.get("cookie_expiry_days", 30)
     }
 }
-
+stauth.Hasher.hash_passwords(config['credentials'])
 authenticator = stauth.Authenticate(
     config['credentials'],
     config['cookie']['name'],
