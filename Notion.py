@@ -45,16 +45,12 @@ config = {
     }
 }
 
-@st.cache_resource
-def get_authenticator():
-    return stauth.Authenticate(
-        config['credentials'],
-        config['cookie']['name'],
-        config['cookie']['key'],
-        config['cookie']['expiry_days'],
-    )
-
-authenticator = get_authenticator()
+authenticator = stauth.Authenticate(
+    config['credentials'],
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days'],
+)
 
 if st.session_state.get('authentication_status') is None:
     st.title("🔑 Hexz Ride Tracker Login")

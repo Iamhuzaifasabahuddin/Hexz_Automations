@@ -26,8 +26,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-
-
 config = {
     'credentials': {
         'usernames': {
@@ -59,9 +57,9 @@ authenticator.login()
 if st.session_state.get('authentication_status') is True:
 
     st.title(f"💰 Welcome {st.session_state.get('name')}!")
-    authenticator.logout(location="main")
 
-    main_tabs = st.tabs(["💸 Add Transaction", "📊 View Budget"])
+
+    main_tabs = st.tabs(["💸 Add Transaction", "📊 View Budget", "🔍 Search & Filter"])
 
     with main_tabs[0]:
         st.header("💸 Add a Transaction")
@@ -454,6 +452,153 @@ if st.session_state.get('authentication_status') is True:
                         st.info("No income recorded yet.")
         else:
             st.info("❌ No transactions recorded yet.")
+
+    with main_tabs[2]:
+        st.header("🔍 Search & Filter Transactions")
+
+        if st.button("🔄 Refresh Data", key="refresh_search"):
+            st.cache_data.clear()
+            st.rerun()
+
+        transactions = get_transactions()
+
+        if transactions:
+            df = pd.DataFrame(transactions)
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            df = df.sort_values(by="date", ascending=False)
+
+            st.subheader("Filter Options")
+
+            filter_col1, filter_col2 = st.columns(2)
+
+            with filter_col1:
+                # Date range filter
+                st.write("**Date Range**")
+                use_date_range = st.checkbox("Filter by date range")
+
+                if use_date_range:
+                    min_date = df["date"].min().date()
+                    max_date = df["date"].max().date()
+
+                    date_from = st.date_input(
+                        "From",
+                        value=min_date,
+                        min_value=min_date,
+                        max_value=max_date,
+                        key="date_from"
+                    )
+                    date_to = st.date_input(
+                        "To",
+                        value=max_date,
+                        min_value=min_date,
+                        max_value=max_date,
+                        key="date_to"
+                    )
+
+                # Transaction type filter
+                st.write("**Transaction Type**")
+                transaction_types = ["All", "Income", "Expense"]
+                selected_type = st.selectbox("Select Type", transaction_types)
+
+            with filter_col2:
+                # Amount range filter
+                st.write("**Amount Range**")
+                use_amount_range = st.checkbox("Filter by amount")
+
+                if use_amount_range:
+                    min_amount = int(df["amount"].min())
+                    max_amount = int(df["amount"].max())
+
+                    amount_range = st.slider(
+                        "Select amount range (PKR)",
+                        min_value=min_amount,
+                        max_value=max_amount,
+                        value=(min_amount, max_amount),
+                        step=50
+                    )
+
+                # Category filter
+                st.write("**Category**")
+                categories = ["All"] + sorted(df["category"].unique().tolist())
+                selected_category = st.selectbox("Select Category", categories)
+
+            # Apply filters
+            filtered_df = df.copy()
+
+            if use_date_range:
+                filtered_df = filtered_df[
+                    (filtered_df["date"].dt.date >= date_from) &
+                    (filtered_df["date"].dt.date <= date_to)
+                    ]
+
+            if use_amount_range:
+                filtered_df = filtered_df[
+                    (filtered_df["amount"] >= amount_range[0]) &
+                    (filtered_df["amount"] <= amount_range[1])
+                    ]
+
+            if selected_type != "All":
+                filtered_df = filtered_df[filtered_df["type"] == selected_type]
+
+            if selected_category != "All":
+                filtered_df = filtered_df[filtered_df["category"] == selected_category]
+
+            # Display results
+            st.subheader(f"Results ({len(filtered_df)} transactions found)")
+
+            if not filtered_df.empty:
+                # Summary metrics
+                col1, col2, col3, col4 = st.columns(4)
+
+                total_income = filtered_df[filtered_df["type"] == "Income"]["amount"].sum()
+                total_expense = filtered_df[filtered_df["type"] == "Expense"]["amount"].sum()
+                net_balance = total_income - total_expense
+
+                with col1:
+                    st.metric("💰 Total Income", f"PKR {total_income:,.2f}")
+                with col2:
+                    st.metric("💸 Total Expenses", f"PKR {total_expense:,.2f}")
+                with col3:
+                    st.metric("💵 Net Balance", f"PKR {net_balance:,.2f}")
+                with col4:
+                    st.metric("📊 Count", len(filtered_df))
+
+                # Display data
+                filtered_df["date_display"] = filtered_df["date"].dt.strftime("%d-%B-%Y")
+                display_df = filtered_df[["date_display", "time", "type", "category", "amount", "description"]].copy()
+                display_df.columns = ["Date", "Time", "Type", "Category", "Amount (PKR)", "Description"]
+                display_df.index = range(1, len(display_df) + 1)
+
+                st.dataframe(display_df, use_container_width=True)
+
+                # Charts
+                st.subheader("Visual Analysis")
+
+                chart_col1, chart_col2 = st.columns(2)
+
+                with chart_col1:
+                    st.write("**Spending Over Time**")
+                    chart_df = filtered_df.groupby(filtered_df["date"].dt.date)["amount"].sum().reset_index()
+                    chart_df.columns = ["Date", "Amount"]
+                    st.line_chart(chart_df.set_index("Date"))
+
+                with chart_col2:
+                    st.write("**Amount by Category**")
+                    category_chart = filtered_df.groupby("category")["amount"].sum().reset_index()
+                    category_chart = category_chart.sort_values("amount", ascending=False)
+                    st.bar_chart(category_chart.set_index("category"))
+
+                # Income vs Expense breakdown
+                if selected_type == "All":
+                    st.subheader("Income vs Expenses")
+                    type_summary = filtered_df.groupby("type")["amount"].sum().reset_index()
+                    st.bar_chart(type_summary.set_index("type"))
+
+            else:
+                st.info("No transactions match your filters.")
+        else:
+            st.info("❌ No transactions recorded yet.")
+
 elif st.session_state.get('authentication_status') is False:
     st.error('Username/password is incorrect')
     st.stop()
