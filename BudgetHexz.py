@@ -472,7 +472,7 @@ if st.session_state.get('authentication_status') is True:
             filter_col1, filter_col2 = st.columns(2)
 
             with filter_col1:
-                # Date range filter
+
                 st.write("**Date Range**")
                 use_date_range = st.checkbox("Filter by date range")
 
@@ -495,13 +495,13 @@ if st.session_state.get('authentication_status') is True:
                         key="date_to"
                     )
 
-                # Transaction type filter
+
                 st.write("**Transaction Type**")
                 transaction_types = ["All", "Income", "Expense"]
                 selected_type = st.selectbox("Select Type", transaction_types)
 
             with filter_col2:
-                # Amount range filter
+
                 st.write("**Amount Range**")
                 use_amount_range = st.checkbox("Filter by amount")
 
@@ -517,12 +517,12 @@ if st.session_state.get('authentication_status') is True:
                         step=50
                     )
 
-                # Category filter
+
                 st.write("**Category**")
                 categories = ["All"] + sorted(df["category"].unique().tolist())
                 selected_category = st.selectbox("Select Category", categories)
 
-            # Apply filters
+
             filtered_df = df.copy()
 
             if use_date_range:
@@ -543,12 +543,12 @@ if st.session_state.get('authentication_status') is True:
             if selected_category != "All":
                 filtered_df = filtered_df[filtered_df["category"] == selected_category]
 
-            # Display results
+
             st.subheader(f"Results ({len(filtered_df)} transactions found)")
 
             if not filtered_df.empty:
-                # Summary metrics
-                col1, col2, col3, col4 = st.columns(4)
+
+                col1, col2 = st.columns(2)
 
                 total_income = filtered_df[filtered_df["type"] == "Income"]["amount"].sum()
                 total_expense = filtered_df[filtered_df["type"] == "Expense"]["amount"].sum()
@@ -556,22 +556,21 @@ if st.session_state.get('authentication_status') is True:
 
                 with col1:
                     st.metric("💰 Total Income", f"PKR {total_income:,.2f}")
-                with col2:
                     st.metric("💸 Total Expenses", f"PKR {total_expense:,.2f}")
-                with col3:
+
+                with col2:
                     st.metric("💵 Net Balance", f"PKR {net_balance:,.2f}")
-                with col4:
                     st.metric("📊 Count", len(filtered_df))
 
-                # Display data
+
                 filtered_df["date_display"] = filtered_df["date"].dt.strftime("%d-%B-%Y")
                 display_df = filtered_df[["date_display", "time", "type", "category", "amount", "description"]].copy()
                 display_df.columns = ["Date", "Time", "Type", "Category", "Amount (PKR)", "Description"]
                 display_df.index = range(1, len(display_df) + 1)
 
-                st.dataframe(display_df, use_container_width=True)
+                st.dataframe(display_df, width="stretch")
 
-                # Charts
+
                 st.subheader("Visual Analysis")
 
                 chart_col1, chart_col2 = st.columns(2)
@@ -588,7 +587,7 @@ if st.session_state.get('authentication_status') is True:
                     category_chart = category_chart.sort_values("amount", ascending=False)
                     st.bar_chart(category_chart.set_index("category"))
 
-                # Income vs Expense breakdown
+
                 if selected_type == "All":
                     st.subheader("Income vs Expenses")
                     type_summary = filtered_df.groupby("type")["amount"].sum().reset_index()
