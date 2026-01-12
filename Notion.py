@@ -8,7 +8,6 @@ import streamlit_authenticator as stauth
 from notion_client import Client
 
 notion = Client(auth=st.secrets["notion_token"])
-database_id = st.secrets["database_id"]
 datasource_id = st.secrets["datasource_id"]
 
 st.set_page_config(
@@ -25,6 +24,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+cookie_name = st.secrets.get("cookie_name", "hexz_budget_cookie")
+cookie_key = st.secrets["cookie_key"]
+cookie_expiry_days = int(st.secrets.get("cookie_expiry_days", 30))
+
 config = {
     'credentials': {
         'usernames': {
@@ -36,21 +39,24 @@ config = {
         }
     },
     'cookie': {
-        'name': st.secrets.get("cookie_name", "hexz_budget_cookie"),
-        'key': st.secrets["cookie_key"],
-        'expiry_days': st.secrets.get("cookie_expiry_days", 30)
+        'name': cookie_name,
+        'key': cookie_key,
+        'expiry_days': cookie_expiry_days
     }
 }
+
 authenticator = stauth.Authenticate(
     config['credentials'],
     config['cookie']['name'],
     config['cookie']['key'],
     config['cookie']['expiry_days'],
+    # Add auto_hash=False if you're storing plain text passwords (not recommended for production)
+    # auto_hash=False
 )
 
 if st.session_state.get('authentication_status') is None:
     st.title("🔑 Hexz Ride Tracker Login")
-authenticator.login(location="main")
+    authenticator.login(location="main")
 
 if st.session_state.get('authentication_status') is True:
 
