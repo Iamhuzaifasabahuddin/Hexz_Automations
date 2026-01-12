@@ -39,9 +39,6 @@ config = {
         'name': st.secrets.get("cookie_name", "hexz_budget_cookie"),
         'key': st.secrets["cookie_key"],
         'expiry_days': st.secrets.get("cookie_expiry_days", 30)
-    },
-    'preauthorized': {
-        'emails': []
     }
 }
 authenticator = stauth.Authenticate(
@@ -49,7 +46,6 @@ authenticator = stauth.Authenticate(
     config['cookie']['name'],
     config['cookie']['key'],
     config['cookie']['expiry_days'],
-    config['preauthorized']
 )
 
 if st.session_state.get('authentication_status') is None:
