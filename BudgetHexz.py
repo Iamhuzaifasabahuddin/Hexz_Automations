@@ -26,7 +26,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-hashed_password = stauth.Hasher([st.secrets["auth_password_hexz"]]).generate()[0]
+
 
 config = {
     'credentials': {
@@ -34,7 +34,7 @@ config = {
             st.secrets["auth_username_hexz"]: {
                 'name': st.secrets["auth_name_hexz"],
                 'email': st.secrets["auth_email_hexz"],
-                'password': hashed_password
+                'password': st.secrets["auth_password_hexz"]
             }
         }
     },
