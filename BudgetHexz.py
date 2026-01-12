@@ -552,11 +552,13 @@ if st.session_state.get('authentication_status') is True:
 
                 total_income = filtered_df[filtered_df["type"] == "Income"]["amount"].sum()
                 total_expense = filtered_df[filtered_df["type"] == "Expense"]["amount"].sum()
+                total_savings = filtered_df[filtered_df["category"] == "Savings"]["amount"].sum()
                 net_balance = total_income - total_expense
 
                 with col1:
                     st.metric("💰 Total Income", f"PKR {total_income:,.2f}")
                     st.metric("💸 Total Expenses", f"PKR {total_expense:,.2f}")
+                    st.metric("🤑 Total Savings", f"PKR {total_savings:,.2f}")
 
                 with col2:
                     st.metric("💵 Net Balance", f"PKR {net_balance:,.2f}")
