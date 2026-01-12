@@ -45,14 +45,16 @@ config = {
     }
 }
 
-authenticator = stauth.Authenticate(
-    config['credentials'],
-    config['cookie']['name'],
-    config['cookie']['key'],
-    config['cookie']['expiry_days'],
-    # Add auto_hash=False if you're storing plain text passwords (not recommended for production)
-    # auto_hash=False
-)
+@st.cache_resource
+def get_authenticator():
+    return stauth.Authenticate(
+        config['credentials'],
+        config['cookie']['name'],
+        config['cookie']['key'],
+        config['cookie']['expiry_days'],
+    )
+
+authenticator = get_authenticator()
 
 if st.session_state.get('authentication_status') is None:
     st.title("🔑 Hexz Ride Tracker Login")
@@ -61,6 +63,8 @@ if st.session_state.get('authentication_status') is None:
 if st.session_state.get('authentication_status') is True:
 
     st.title(f"💰 Welcome {st.session_state.get('name')}!")
+    if st.button("🚪 Logout"):
+        authenticator.logout()
 
     col1, col2 = st.columns([8, 2])
 
