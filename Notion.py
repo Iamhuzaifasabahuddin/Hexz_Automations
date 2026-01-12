@@ -44,7 +44,7 @@ config = {
         'expiry_days': cookie_expiry_days
     }
 }
-
+st.write(st.session_state)
 authenticator = stauth.Authenticate(
     config['credentials'],
     config['cookie']['name'],
