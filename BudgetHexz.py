@@ -50,6 +50,92 @@ authenticator = stauth.Authenticate(
     config['cookie']['expiry_days']
 )
 
+
+@st.cache_data(ttl=300)
+def get_transactions():
+    transactions = []
+    has_more = True
+    start_cursor = None
+    try:
+
+        while has_more:
+            if start_cursor:
+                data = notion.data_sources.query(
+                    data_source_id=datasource_id,
+                    start_cursor=start_cursor
+                )
+            else:
+                data = notion.data_sources.query(data_source_id=datasource_id)
+
+            for row in data["results"]:
+                props = row["properties"]
+
+                transaction_date = props["Date"]["date"]["start"] if props["Date"]["date"] else None
+                amount = props["Amount"]["number"] if props["Amount"]["number"] else 0
+                month = (
+                    props["Month"]["rich_text"][0]["text"]["content"]
+                    if props["Month"]["rich_text"] else "Unknown"
+                )
+                transaction_time = (
+                    props["Time"]["rich_text"][0]["text"]["content"]
+                    if props["Time"]["rich_text"] else "Unknown"
+                )
+                transaction_type = (
+                    props["Type"]["select"]["name"]
+                    if props["Type"]["select"] else "Unknown"
+                )
+                category = (
+                    props["Category"]["rich_text"][0]["text"]["content"]
+                    if props["Category"]["rich_text"] else "Unknown"
+                )
+                description = (
+                    props["Description"]["rich_text"][0]["text"]["content"]
+                    if props["Description"]["rich_text"] else ""
+                )
+
+                transactions.append({
+                    "id": row["id"],
+                    "date": transaction_date,
+                    "time": transaction_time,
+                    "type": transaction_type,
+                    "category": category,
+                    "amount": amount,
+                    "month": month,
+                    "description": description
+                })
+            has_more = data.get("has_more", False)
+            start_cursor = data.get("next_cursor")
+
+        return transactions
+    except Exception as e:
+        st.error(f"Error: {e}")
+
+def save_transaction_to_notion(transaction_type, category, date_obj, time_obj, amount, description):
+    """Save transaction to Notion."""
+    month = date_obj.strftime("%B %Y")
+    formatted_time = time_obj.strftime("%I:%M %p")
+    try:
+        notion.pages.create(
+            parent={"database_id": database_id},
+            properties={
+                "Name": {
+                    "title": [
+                        {"text": {"content": f"{transaction_type} - {category} ({date_obj})"}}
+                    ]
+                },
+                "Type": {"select": {"name": transaction_type}},
+                "Category": {"rich_text": [{"text": {"content": category}}]},
+                "Date": {"date": {"start": date_obj.isoformat()}},
+                "Time": {"rich_text": [{"text": {"content": formatted_time}}]},
+                "Amount": {"number": amount},
+                "Month": {"rich_text": [{"text": {"content": month}}]},
+                "Description": {"rich_text": [{"text": {"content": description or ""}}]},
+            },
+        )
+        st.success(f"{transaction_type} - {category} @ {date_obj} - {formatted_time} saved to Notion! ✅")
+        st.cache_data.clear()
+    except Exception as e:
+        st.error(f"Error saving transaction: {e}")
 if st.session_state.get('authentication_status') is None:
     st.title("🔑 Hexz Budget Tracker Login")
 authenticator.login()
@@ -109,30 +195,7 @@ if st.session_state.get('authentication_status') is True:
 
         if submitted:
             if amount > 0 and category and transaction_type:
-                month = transaction_date.strftime("%B %Y")
-                formatted_time = transaction_time.strftime("%I:%M %p")
-                try:
-                    notion.pages.create(
-                        parent={"database_id": database_id},
-                        properties={
-                            "Name": {
-                                "title": [
-                                    {"text": {"content": f"{transaction_type} - {category} ({transaction_date})"}}
-                                ]
-                            },
-                            "Type": {"select": {"name": transaction_type}},
-                            "Category": {"rich_text": [{"text": {"content": category}}]},
-                            "Date": {"date": {"start": transaction_date.isoformat()}},
-                            "Time": {"rich_text": [{"text": {"content": formatted_time}}]},
-                            "Amount": {"number": amount},
-                            "Month": {"rich_text": [{"text": {"content": month}}]},
-                            "Description": {"rich_text": [{"text": {"content": description if description else ""}}]},
-                        },
-                    )
-                    st.success(
-                        f"{transaction_type} - {category} @ {transaction_date} - {formatted_time} saved to Notion! ✅")
-                except Exception as e:
-                    st.error(f"Error: {e}")
+                save_transaction_to_notion(transaction_type, category, transaction_date, transaction_time, amount, description)
             else:
                 st.warning("Missing or Invalid Data Detected!")
 
@@ -142,64 +205,6 @@ if st.session_state.get('authentication_status') is True:
         if st.button("🔄 Refresh Data"):
             st.cache_data.clear()
             st.rerun()
-
-
-        @st.cache_data(ttl=120)
-        def get_transactions():
-            transactions = []
-            has_more = True
-            start_cursor = None
-
-            while has_more:
-                if start_cursor:
-                    data = notion.data_sources.query(
-                        data_source_id=datasource_id,
-                        start_cursor=start_cursor
-                    )
-                else:
-                    data = notion.data_sources.query(data_source_id=datasource_id)
-
-                for row in data["results"]:
-                    props = row["properties"]
-
-                    transaction_date = props["Date"]["date"]["start"] if props["Date"]["date"] else None
-                    amount = props["Amount"]["number"] if props["Amount"]["number"] else 0
-                    month = (
-                        props["Month"]["rich_text"][0]["text"]["content"]
-                        if props["Month"]["rich_text"] else "Unknown"
-                    )
-                    transaction_time = (
-                        props["Time"]["rich_text"][0]["text"]["content"]
-                        if props["Time"]["rich_text"] else "Unknown"
-                    )
-                    transaction_type = (
-                        props["Type"]["select"]["name"]
-                        if props["Type"]["select"] else "Unknown"
-                    )
-                    category = (
-                        props["Category"]["rich_text"][0]["text"]["content"]
-                        if props["Category"]["rich_text"] else "Unknown"
-                    )
-                    description = (
-                        props["Description"]["rich_text"][0]["text"]["content"]
-                        if props["Description"]["rich_text"] else ""
-                    )
-
-                    transactions.append({
-                        "id": row["id"],
-                        "date": transaction_date,
-                        "time": transaction_time,
-                        "type": transaction_type,
-                        "category": category,
-                        "amount": amount,
-                        "month": month,
-                        "description": description
-                    })
-                has_more = data.get("has_more", False)
-                start_cursor = data.get("next_cursor")
-
-            return transactions
-
 
         transactions = get_transactions()
 
