@@ -44,7 +44,7 @@ config = {
         'expiry_days': cookie_expiry_days
     }
 }
-st.write(st.session_state)
+
 authenticator = stauth.Authenticate(
     config['credentials'],
     config['cookie']['name'],
@@ -61,7 +61,8 @@ if st.session_state.get('authentication_status') is None:
 if st.session_state.get('authentication_status') is True:
 
     st.title(f"💰 Welcome {st.session_state.get('name')}!")
-    authenticator.logout(location="main")
+    if st.button("🚪 Logout"):
+        authenticator.logout()
 
     col1, col2 = st.columns([8, 2])
 
