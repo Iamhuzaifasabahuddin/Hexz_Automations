@@ -197,7 +197,7 @@ if st.session_state.get('authentication_status') is True:
             if amount > 0 and category and transaction_type:
                 save_transaction_to_notion(transaction_type, category, transaction_date, transaction_time, amount, description)
             else:
-                st.warning("Missing or Invalid Data Detected!")
+                st.warning("⚠️ Missing or Invalid Data Detected!")
 
     with main_tabs[1]:
         st.header("📊 Budget Overview")

@@ -52,6 +52,79 @@ authenticator = stauth.Authenticate(
     config['cookie']['expiry_days'],
 )
 
+
+@st.cache_data(ttl=300)
+def get_rides():
+    rides = []
+    has_more = True
+    start_cursor = None
+
+    while has_more:
+
+        if start_cursor:
+            data = notion.data_sources.query(
+                data_source_id=datasource_id,
+                start_cursor=start_cursor
+            )
+        else:
+            data = notion.data_sources.query(data_source_id=datasource_id)
+
+        for row in data["results"]:
+            props = row["properties"]
+
+            ride_date = props["Date"]["date"]["start"] if props["Date"]["date"] else None
+            amount = props["Amount"]["number"] if props["Amount"]["number"] else 0
+            month = (
+                props["Month"]["rich_text"][0]["text"]["content"]
+                if props["Month"]["rich_text"] else "Unknown"
+            )
+            ride_time = (
+                props["Time"]["rich_text"][0]["text"]["content"]
+                if props["Time"]["rich_text"] else "Unknown"
+            )
+
+            rides.append({
+                "id": row["id"],
+                "date": ride_date,
+                "time": ride_time,
+                "amount": amount,
+            })
+        has_more = data.get("has_more", False)
+        start_cursor = data.get("next_cursor")
+
+    return rides
+
+
+def save_to_notion(ride_date, ride_time, amount):
+    month = ride_date.strftime("%B")
+    formatted_time = ride_time.strftime("%I:%M %p")
+    page_title = f"Ride {ride_date} {ride_time.strftime('%H:%M')}"
+
+    try:
+        response = notion.pages.create(
+            parent={"data_source_id": datasource_id},
+            properties={
+                "Name": {
+                    "title": [
+                        {"text": {"content": page_title}}
+                    ]
+                },
+                "Date": {"date": {"start": ride_date.isoformat()}},
+                "Time": {"rich_text": [{"text": {"content": formatted_time}}]},
+                "Amount": {"number": amount},
+                "Month": {"rich_text": [{"text": {"content": month}}]},
+            },
+        )
+        if response and response.get("id"):
+            st.success(
+                f"✅ Ride saved to Notion successfully!\n\n**Title:** {page_title} for PKR {amount}")
+            st.cache_data.clear()
+        else:
+            st.warning("⚠️ Ride creation request sent, but no confirmation received from Notion.")
+    except Exception as e:
+        st.error(f"Error: {e}")
+
+
 if st.session_state.get('authentication_status') is None:
     st.title("🔑 Hexz Ride Tracker Login")
     authenticator.login(location="main")
@@ -90,82 +163,14 @@ if st.session_state.get('authentication_status') is True:
                 if not ride_date or not ride_time or amount <= 0:
                     st.warning("⚠️ Please provide a valid date, time, and amount before saving.")
                 else:
-                    month = ride_date.strftime("%B")
-                    formatted_time = ride_time.strftime("%I:%M %p")
-                    page_title = f"Ride {ride_date} {ride_time.strftime('%H:%M')}"
+                    save_to_notion(ride_date, ride_time, amount)
 
-                    try:
-                        response = notion.pages.create(
-                            parent={"data_source_id": datasource_id},
-                            properties={
-                                "Name": {
-                                    "title": [
-                                        {"text": {"content": page_title}}
-                                    ]
-                                },
-                                "Date": {"date": {"start": ride_date.isoformat()}},
-                                "Time": {"rich_text": [{"text": {"content": formatted_time}}]},
-                                "Amount": {"number": amount},
-                                "Month": {"rich_text": [{"text": {"content": month}}]},
-                            },
-                        )
-                        if response and response.get("id"):
-                            st.success(
-                                f"✅ Ride saved to Notion successfully!\n\n**Title:** {page_title} for PKR {amount}")
-                        else:
-                            st.warning("⚠️ Ride creation request sent, but no confirmation received from Notion.")
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-        
         with main_tabs[1]:
             st.header("📊 Ride Stats")
 
             if st.button("🔄 Refresh Data"):
                 st.cache_data.clear()
                 st.rerun()
-
-
-            @st.cache_data(ttl=120)
-            def get_rides():
-                rides = []
-                has_more = True
-                start_cursor = None
-
-                while has_more:
-
-                    if start_cursor:
-                        data = notion.data_sources.query(
-                            data_source_id=datasource_id,
-                            start_cursor=start_cursor
-                        )
-                    else:
-                        data = notion.data_sources.query(data_source_id=datasource_id)
-
-                    for row in data["results"]:
-                        props = row["properties"]
-
-                        ride_date = props["Date"]["date"]["start"] if props["Date"]["date"] else None
-                        amount = props["Amount"]["number"] if props["Amount"]["number"] else 0
-                        month = (
-                            props["Month"]["rich_text"][0]["text"]["content"]
-                            if props["Month"]["rich_text"] else "Unknown"
-                        )
-                        ride_time = (
-                            props["Time"]["rich_text"][0]["text"]["content"]
-                            if props["Time"]["rich_text"] else "Unknown"
-                        )
-
-                        rides.append({
-                            "id": row["id"],
-                            "date": ride_date,
-                            "time": ride_time,
-                            "amount": amount,
-                        })
-                    has_more = data.get("has_more", False)
-                    start_cursor = data.get("next_cursor")
-
-                return rides
-
 
             rides = get_rides()
 
@@ -250,7 +255,7 @@ if st.session_state.get('authentication_status') is True:
                     selected_month = st.selectbox("Select Month", months, index=default_month_idx, key="delete_box")
                     selected_year = st.number_input("Select Year", value=current_year, min_value=2025,
                                                     max_value=current_year, key="delete_year")
-                    
+
                     if selected_month == "All":
                         filtered_df = df[df["year"] == selected_year]
                     else:
@@ -278,7 +283,7 @@ if st.session_state.get('authentication_status') is True:
 
         with main_tabs[2]:
             st.header("🔍 Search & Filter Rides")
-            
+
             if st.button("🔄 Refresh Data", key="refresh_search"):
                 st.cache_data.clear()
                 st.rerun()
@@ -293,18 +298,18 @@ if st.session_state.get('authentication_status') is True:
                 df = df.sort_values(by="date", ascending=False)
 
                 st.subheader("Filter Options")
-                
+
                 filter_col1, filter_col2 = st.columns(2)
-                
+
                 with filter_col1:
                     # Date range filter
                     st.write("**Date Range**")
                     use_date_range = st.checkbox("Filter by date range")
-                    
+
                     if use_date_range:
                         min_date = df["date"].min().date()
                         max_date = df["date"].max().date()
-                        
+
                         date_from = st.date_input(
                             "From",
                             value=min_date,
@@ -319,16 +324,16 @@ if st.session_state.get('authentication_status') is True:
                             max_value=max_date,
                             key="date_to"
                         )
-                
+
                 with filter_col2:
                     # Amount range filter
                     st.write("**Amount Range**")
                     use_amount_range = st.checkbox("Filter by amount")
-                    
+
                     if use_amount_range:
                         min_amount = int(df["amount"].min())
                         max_amount = int(df["amount"].max())
-                        
+
                         amount_range = st.slider(
                             "Select amount range (PKR)",
                             min_value=min_amount,
@@ -336,25 +341,25 @@ if st.session_state.get('authentication_status') is True:
                             value=(min_amount, max_amount),
                             step=50
                         )
-                
+
                 # Apply filters
                 filtered_df = df.copy()
-                
+
                 if use_date_range:
                     filtered_df = filtered_df[
-                        (filtered_df["date"].dt.date >= date_from) & 
+                        (filtered_df["date"].dt.date >= date_from) &
                         (filtered_df["date"].dt.date <= date_to)
-                    ]
-                
+                        ]
+
                 if use_amount_range:
                     filtered_df = filtered_df[
-                        (filtered_df["amount"] >= amount_range[0]) & 
+                        (filtered_df["amount"] >= amount_range[0]) &
                         (filtered_df["amount"] <= amount_range[1])
-                    ]
-                
+                        ]
+
                 # Display results
                 st.subheader(f"Results ({len(filtered_df)} rides found)")
-                
+
                 if not filtered_df.empty:
                     # Summary metrics
                     col1, col2, col3 = st.columns(3)
@@ -364,21 +369,21 @@ if st.session_state.get('authentication_status') is True:
                         st.metric("Average Amount", f"PKR {filtered_df['amount'].mean():,.2f}")
                     with col3:
                         st.metric("Number of Rides", len(filtered_df))
-                    
+
                     # Display data
                     filtered_df["date_display"] = filtered_df["date"].dt.strftime("%d-%B-%Y")
                     display_df = filtered_df[["date_display", "time", "amount", "month", "year"]].copy()
                     display_df.columns = ["Date", "Time", "Amount (PKR)", "Month", "Year"]
                     display_df.index = range(1, len(display_df) + 1)
-                    
+
                     st.dataframe(display_df, width='stretch')
-                    
+
                     # Chart
                     st.subheader("Spending Over Time")
                     chart_df = filtered_df.groupby(filtered_df["date"].dt.date)["amount"].sum().reset_index()
                     chart_df.columns = ["Date", "Amount"]
                     st.line_chart(chart_df.set_index("Date"))
-                    
+
                 else:
                     st.info("No rides match your filters.")
             else:
