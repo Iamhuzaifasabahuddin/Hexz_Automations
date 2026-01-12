@@ -26,13 +26,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+hashed_password = stauth.Hasher([st.secrets["auth_password_hexz"]]).generate()[0]
+
 config = {
     'credentials': {
         'usernames': {
             st.secrets["auth_username_hexz"]: {
                 'name': st.secrets["auth_name_hexz"],
                 'email': st.secrets["auth_email_hexz"],
-                'password': st.secrets["auth_password_hexz"]
+                'password': hashed_password
             }
         }
     },
@@ -57,7 +59,7 @@ authenticator.login()
 if st.session_state.get('authentication_status') is True:
 
     st.title(f"💰 Welcome {st.session_state.get('name')}!")
-    authenticator.logout()
+    authenticator.logout(location="main")
 
     main_tabs = st.tabs(["💸 Add Transaction", "📊 View Budget"])
 
