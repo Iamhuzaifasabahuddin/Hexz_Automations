@@ -32,7 +32,7 @@ def create_invoice_pdf(invoice_data, items):
     centered_h3 = styles['Heading3'].clone('centered_h3')
     centered_h3.alignment = TA_CENTER
     title = Paragraph(f"<b>INVOICE #{invoice_data['invoice_number']}</b>", styles['Title'])
-    generated = Paragraph(f"<b>generated on {now_pkt.strftime("%d-%B-%Y @ %I:%m %p")}</b>",centered_h3)
+    generated = Paragraph(f"<b>Generated on {now_pkt.strftime("%d-%B-%Y @ %I:%M %p")}</b>",centered_h3)
     elements.append(title)
     elements.append(generated)
     elements.append(Spacer(1, 0.3 * inch))
@@ -63,7 +63,7 @@ def create_invoice_pdf(invoice_data, items):
     table_data.append(['', '', '', 'Tax:', f"PKR {invoice_data['tax']:,.2f}"])
     table_data.append(['', '', '', 'Total:', f"PKR {invoice_data['total']:,.2f}"])
 
-    table = Table(table_data, colWidths=[1.5 * inch, 2.5 * inch, 1 * inch, 1 * inch, 1 * inch])
+    table = Table(table_data, colWidths=[1.5 * inch, 2.5 * inch, 1 * inch, 1 * inch, 1.5 * inch])
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
