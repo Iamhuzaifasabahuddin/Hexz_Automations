@@ -146,7 +146,8 @@ authenticator.login()
 if st.session_state.get('authentication_status') is True:
 
     st.title(f"💰 Welcome {st.session_state.get('name')}!")
-    authenticator.logout()
+    if st.button("🚪 Logout"):
+        authenticator.logout()
 
     main_tabs = st.tabs(["💸 Add Transaction", "📊 View Budget", "🔍 Search & Filter"])
 
