@@ -110,7 +110,7 @@ def get_transactions():
     except Exception as e:
         st.error(f"Error: {e}")
 
-def save_transaction_to_notion(transaction_type, category, date_obj, time_obj, amount, description):
+def save_transaction_to_notion(transaction_type: str, category: str, date_obj: datetime, time_obj: datetime, amount: int, description: str):
     """Save transaction to Notion."""
     month = date_obj.strftime("%B %Y")
     formatted_time = time_obj.strftime("%I:%M %p")
@@ -408,9 +408,10 @@ if st.session_state.get('authentication_status') is True:
                                 for idx, transaction in month_df.iterrows():
                                     with st.container():
                                         st.markdown(
-                                            f"**➖ {transaction['parsed_date'].strftime('%d %B %Y')}**  \n"
+                                            f"**➖ {transaction['parsed_date'].strftime('%d %B %Y')} - {transaction["time"]}**  \n"
                                             f"Category: {transaction['category']}  |  "
-                                            f"Amount: PKR {transaction['amount']:,}"
+                                            f"Amount: PKR {transaction['amount']:,} |"
+                                            f"Description: {transaction['description']} "
                                         )
 
                                         if st.button(
@@ -440,9 +441,10 @@ if st.session_state.get('authentication_status') is True:
                                 for idx, transaction in month_df.iterrows():
                                     with st.container():
                                         st.markdown(
-                                            f"**➕ {transaction['parsed_date'].strftime('%d %B %Y')}**  \n"
+                                            f"**➕ {transaction['parsed_date'].strftime('%d %B %Y')} - {transaction["time"]}**  \n"
                                             f"Category: {transaction['category']}  |  "
-                                            f"Amount: PKR {transaction['amount']:,}"
+                                            f"Amount: PKR {transaction['amount']:,} |"
+                                            f"Description: {transaction['description']} "
                                         )
 
                                         if st.button(

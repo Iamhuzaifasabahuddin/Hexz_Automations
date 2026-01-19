@@ -96,7 +96,7 @@ def get_rides():
     return rides
 
 
-def save_to_notion(ride_date, ride_time, amount):
+def save_to_notion(ride_date: datetime, ride_time: datetime, amount: int):
     month = ride_date.strftime("%B")
     formatted_time = ride_time.strftime("%I:%M %p")
     page_title = f"Ride {ride_date} {ride_time.strftime('%H:%M')}"
