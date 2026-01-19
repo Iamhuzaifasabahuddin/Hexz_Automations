@@ -321,7 +321,7 @@ if st.session_state.get('authentication_status') is True:
 
                 col_a, col_b, col_c = st.columns(3)
                 col_a.metric("💰 Income", f"PKR {income:,.2f}")
-                col_b.metric("💸 Expenses", f"PKR {expense:,.2f}")
+                col_c.metric("💸 Expenses", f"PKR {expense:,.2f}")
                 col_c.metric("💵 Balance", f"PKR {balance:,.2f}")
                 col_a.metric("💹 Savings", f"PKR {savings:,.2f}")
 
