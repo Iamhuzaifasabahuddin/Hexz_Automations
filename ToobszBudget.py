@@ -7,10 +7,19 @@ import streamlit as st
 import streamlit_authenticator as stauth
 from notion_client import Client
 
-notion = Client(auth=st.secrets["notion_token_2"])
+notion_token = st.secrets["notion_token_2"]
 database_id = st.secrets["database_id_2"]
 datasource_id = st.secrets["data_source_id_2"]
-APP_PASSWORD = st.secrets["app_password_2"]
+
+@st.cache_resource
+def get_notion_client(notion_token: str) -> Client | None:
+    """Create and cache Notion client"""
+    try:
+        return Client(auth=notion_token)
+    except Exception as e:
+        print(e)
+
+notion= get_notion_client(notion_token)
 
 st.set_page_config(
     page_title="Personal Budget Tracker",

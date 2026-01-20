@@ -8,9 +8,19 @@ import streamlit_authenticator as stauth
 from notion_client import Client
 
 # Initialize Notion client
-notion = Client(auth=st.secrets["notion_token_3"])
+notion_token = st.secrets["notion_token_3"]
 database_id = st.secrets["database_id_3"]
 datasource_id = st.secrets["data_source_id_3"]
+
+@st.cache_resource
+def get_notion_client(notion_token: str) -> Client | None:
+    """Create and cache Notion client"""
+    try:
+        return Client(auth=notion_token)
+    except Exception as e:
+        print(e)
+
+notion= get_notion_client(notion_token)
 
 st.set_page_config(
     page_title="Hexz Personal Budget Tracker",
