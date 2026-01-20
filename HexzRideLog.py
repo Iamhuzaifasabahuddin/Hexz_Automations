@@ -118,7 +118,7 @@ def save_to_notion(ride_date: datetime, ride_time: datetime, amount: int):
         )
         if response and response.get("id"):
             st.success(
-                f"✅ Ride saved to Notion successfully!\n\n**Title:** {page_title} for PKR {amount}")
+                f"✅ Ride saved to Notion successfully!\n\n**Title:** {page_title} for PKR {amount:,.2f}")
             st.cache_data.clear()
         else:
             st.warning("⚠️ Ride creation request sent, but no confirmation received from Notion.")

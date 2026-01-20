@@ -133,7 +133,7 @@ def save_transaction_to_notion(transaction_type: str, category: str, date_obj: d
                 "Description": {"rich_text": [{"text": {"content": description or ""}}]},
             },
         )
-        st.success(f"{transaction_type} - {category} @ {date_obj} - {formatted_time} saved to Notion! ✅")
+        st.success(f"{transaction_type} - {category} for PKR {amount:,.2f} @ {date_obj} - {formatted_time} saved to Notion! ✅")
         st.cache_data.clear()
     except Exception as e:
         st.error(f"Error saving transaction: {e}")
