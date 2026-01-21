@@ -1,7 +1,7 @@
-notion-client
-pandas
-streamlit == 1.52.2
-openpyxl
-streamlit_authenticator
-reportlab
-altair == 5.5.0
+notion-client == 2.7.0
+pandas == 3.0.0
+streamlit == 1.53.0
+openpyxl == 3.1.5
+streamlit_authenticator == 0.4.2
+reportlab == 4.4.9
+altair == 6.0.0
