@@ -4,4 +4,4 @@ streamlit
 openpyxl
 streamlit_authenticator
 reportlab
-altair==5.5.0
+altair==4.4.2
