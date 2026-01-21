@@ -126,7 +126,7 @@ def save_transaction_to_notion(transaction_type: str, category: str, date_obj: d
     formatted_time = time_obj.strftime("%I:%M %p")
     try:
         notion.pages.create(
-            parent={"database_id": database_id},
+            parent={"data_source_id" : datasource_id},
             properties={
                 "Name": {
                     "title": [
