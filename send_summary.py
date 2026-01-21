@@ -5,8 +5,9 @@ import calendar
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import pytz
 
-# Initialize Notion client
+pkt = pytz.timezone("Asia/Karachi")
 notion = Client(auth=os.environ["NOTION_TOKEN"])
 datasource_id = os.environ["NOTION_DATASOURCE_ID"]
 
@@ -55,9 +56,8 @@ def get_all_rides():
 
 def get_previous_month_summary(rides):
     """Generate summary for the previous month"""
-    today = datetime.now()
+    today = datetime.now(pkt)
 
-    # Get previous month
     if today.month == 1:
         prev_month = 12
         prev_year = today.year - 1
@@ -68,7 +68,6 @@ def get_previous_month_summary(rides):
     prev_month_name = calendar.month_name[prev_month]
     prev_month_year = f"{prev_month_name} {prev_year}"
 
-    # Filter rides for previous month
     month_rides = [r for r in rides if r["month"] == prev_month_name]
 
     if not month_rides:
@@ -80,7 +79,6 @@ def get_previous_month_summary(rides):
     most_expensive = max(month_rides, key=lambda x: x["amount"])
     cheapest = min(month_rides, key=lambda x: x["amount"])
 
-    # Calculate time-based stats
     time_breakdown = {}
     for ride in month_rides:
         time = ride["time"]
@@ -111,7 +109,6 @@ def send_email(summary):
     message["From"] = sender_email
     message["To"] = recipient_email
 
-    # Build time breakdown HTML
     time_html = ""
     for time, count in summary['time_breakdown'].items():
         percentage = (count / summary['total_rides']) * 100

@@ -5,7 +5,9 @@ import calendar
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import pytz
 
+pkt = pytz.timezone("Asia/Karachi")
 notion = Client(auth=os.environ["NOTION_TOKEN"])
 datasource_id = os.environ["NOTION_DATASOURCE_ID"]
 
@@ -69,9 +71,8 @@ def get_all_transactions():
 
 def get_previous_month_summary(transactions):
     """Generate summary for the previous month"""
-    today = datetime.now()
+    today = datetime.now(pkt)
 
-    # Get previous month
     if today.month == 1:
         prev_month = 12
         prev_year = today.year - 1
@@ -82,39 +83,33 @@ def get_previous_month_summary(transactions):
     prev_month_name = calendar.month_name[prev_month]
     prev_month_year = f"{prev_month_name} {prev_year}"
 
-    # Filter transactions for previous month
     month_transactions = [t for t in transactions if t["month"] == prev_month_year]
 
     if not month_transactions:
         return None
 
-    # Separate income and expenses
     income_transactions = [t for t in month_transactions if t["type"] == "Income"]
     expense_transactions = [t for t in month_transactions if t["type"] == "Expense"]
 
-    # Calculate totals
     total_income = sum(t["amount"] for t in income_transactions)
     total_expenses = sum(t["amount"] for t in expense_transactions)
     total_savings = sum(t["amount"] for t in expense_transactions if t["category"] == "Savings")
     net_balance = total_income - total_expenses
 
-    # Income breakdown by category
+
     income_by_category = {}
     for t in income_transactions:
         category = t["category"]
         income_by_category[category] = income_by_category.get(category, 0) + t["amount"]
 
-    # Expense breakdown by category
     expense_by_category = {}
     for t in expense_transactions:
         category = t["category"]
         expense_by_category[category] = expense_by_category.get(category, 0) + t["amount"]
 
-    # Find biggest transactions
     biggest_expense = max(expense_transactions, key=lambda x: x["amount"]) if expense_transactions else None
     biggest_income = max(income_transactions, key=lambda x: x["amount"]) if income_transactions else None
 
-    # Most common expense category
     most_common_expense_category = max(expense_by_category,
                                        key=expense_by_category.get) if expense_by_category else "N/A"
 
@@ -146,19 +141,16 @@ def send_email(summary):
     message["From"] = sender_email
     message["To"] = recipient_email
 
-    # Build income breakdown HTML
     income_html = ""
     for category, amount in sorted(summary['income_by_category'].items(), key=lambda x: x[1], reverse=True):
         percentage = (amount / summary['total_income']) * 100 if summary['total_income'] > 0 else 0
         income_html += f"<li><strong>{category}:</strong> PKR {amount:,.2f} ({percentage:.1f}%)</li>"
 
-    # Build expense breakdown HTML
     expense_html = ""
     for category, amount in sorted(summary['expense_by_category'].items(), key=lambda x: x[1], reverse=True):
         percentage = (amount / summary['total_expenses']) * 100 if summary['total_expenses'] > 0 else 0
         expense_html += f"<li><strong>{category}:</strong> PKR {amount:,.2f} ({percentage:.1f}%)</li>"
 
-    # Determine balance status
     balance_color = "#27ae60" if summary['net_balance'] >= 0 else "#e74c3c"
     balance_emoji = "✅" if summary['net_balance'] >= 0 else "⚠️"
 

@@ -1,3 +1,4 @@
+pytz
 notion-client
 pandas
 streamlit
