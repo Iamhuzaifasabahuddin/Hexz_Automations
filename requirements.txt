@@ -1,7 +1,7 @@
-pytz
 notion-client
 pandas
 streamlit
 openpyxl
 streamlit_authenticator
 reportlab
+altair==5.5.0
