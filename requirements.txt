@@ -1,6 +1,7 @@
 notion-client
 pandas
-streamlit
+streamlit == 1.52.2
 openpyxl
 streamlit_authenticator
 reportlab
+altair == 5.5.0
