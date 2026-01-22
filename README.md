@@ -66,7 +66,7 @@ Both apps share the same design philosophy, authentication system, and Notion-ba
 
 ## 🛠 Tech Stack
 
-- **Python 3.11+**
+- **Python 3.13+**
 - **Streamlit**
 - **Pandas**
 - **Notion API**
