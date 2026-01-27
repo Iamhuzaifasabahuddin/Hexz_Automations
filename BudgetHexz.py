@@ -48,7 +48,7 @@ def get_auth_config():
 
 EXPENSE_CATEGORIES = [
     "Food & Dining", "Transportation", "Shopping", "Entertainment",
-    "Bills & Utilities", "Healthcare", "Education", "Savings", "Other"
+    "Bills & Utilities", "Healthcare", "Education", "Savings", "Physical Investments", "Stocks","Mutual Funds", "Other"
 ]
 
 INCOME_CATEGORIES = [
@@ -199,13 +199,22 @@ def render_dashboard(df):
     total_income = df[df["type"] == "Income"]["amount"].sum()
     total_expense = df[df["type"] == "Expense"]["amount"].sum()
     savings = df[df["category"] == "Savings"]["amount"].sum()
+    physical_investments = df[df["category"] == "Physical Investments"]["amount"].sum()
+    stocks = df[df["category"] == "stocks"]["amount"].sum()
+    mutual_funds = df[df["category"] == "Mutual Funds"]["amount"].sum()
     net_balance = total_income - total_expense
 
     col_a, col_b, col_c = st.columns(3)
     col_a.metric("💰 Total Income", f"PKR {total_income:,.2f}")
     col_b.metric("💸 Total Expenses", f"PKR {total_expense:,.2f}")
-    col_a.metric("💹 Total Savings", f"PKR {savings:,.2f}",
+    col_a.metric("💳 Total Savings", f"PKR {savings:,.2f}",
                  delta=f"{savings / total_income * 100:.1f}%" if total_income > 0 else "0%")
+    col_a.metric("🥇 Total Physical Investments", f"PKR {physical_investments:,.2f}",
+                 delta=f"{physical_investments / total_income * 100:.1f}%" if total_income > 0 else "0%")
+    col_a.metric("📈 Total Stocks", f"PKR {stocks:,.2f}",
+                 delta=f"{stocks / total_income * 100:.1f}%" if total_income > 0 else "0%")
+    col_a.metric("💹 Total Mutual Funds", f"PKR {mutual_funds:,.2f}",
+                 delta=f"{mutual_funds / total_income * 100:.1f}%" if total_income > 0 else "0%")
     col_c.metric("💵 Net Balance", f"PKR {net_balance:,.2f}", delta=f"{net_balance:,.2f}", delta_arrow="off")
 
     st.subheader("Income vs Expenses by Month")
@@ -267,13 +276,19 @@ def render_by_month(df):
     income = filtered_df[filtered_df["type"] == "Income"]["amount"].sum()
     expense = filtered_df[filtered_df["type"] == "Expense"]["amount"].sum()
     savings = filtered_df[filtered_df["category"] == "Savings"]["amount"].sum()
+    physical_investments = df[df["category"] == "Physical Investments"]["amount"].sum()
+    stocks = df[df["category"] == "stocks"]["amount"].sum()
+    mutual_funds = df[df["category"] == "Mutual Funds"]["amount"].sum()
     balance = income - expense
 
     col_a, col_b, col_c = st.columns(3)
     col_a.metric("💰 Income", f"PKR {income:,.2f}")
     col_c.metric("💸 Expenses", f"PKR {expense:,.2f}")
     col_c.metric("💵 Balance", f"PKR {balance:,.2f}")
-    col_a.metric("💹 Savings", f"PKR {savings:,.2f}")
+    col_a.metric("💳 Savings", f"PKR {savings:,.2f}")
+    col_a.metric("🥇 Physical Investments", f"PKR {physical_investments:,.2f}")
+    col_a.metric("📈 Stocks", f"PKR {stocks:,.2f}")
+    col_a.metric("💹 Mutual Funds", f"PKR {mutual_funds:,.2f}")
 
 
 def render_all_data(df):
