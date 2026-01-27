@@ -200,7 +200,7 @@ def render_dashboard(df):
     total_expense = df[df["type"] == "Expense"]["amount"].sum()
     savings = df[df["category"] == "Savings"]["amount"].sum()
     physical_investments = df[df["category"] == "Physical Investments"]["amount"].sum()
-    stocks = df[df["category"] == "stocks"]["amount"].sum()
+    stocks = df[df["category"] == "Stocks"]["amount"].sum()
     mutual_funds = df[df["category"] == "Mutual Funds"]["amount"].sum()
     net_balance = total_income - total_expense
 
@@ -276,9 +276,9 @@ def render_by_month(df):
     income = filtered_df[filtered_df["type"] == "Income"]["amount"].sum()
     expense = filtered_df[filtered_df["type"] == "Expense"]["amount"].sum()
     savings = filtered_df[filtered_df["category"] == "Savings"]["amount"].sum()
-    physical_investments = df[df["category"] == "Physical Investments"]["amount"].sum()
-    stocks = df[df["category"] == "stocks"]["amount"].sum()
-    mutual_funds = df[df["category"] == "Mutual Funds"]["amount"].sum()
+    physical_investments = filtered_df[filtered_df["category"] == "Physical Investments"]["amount"].sum()
+    stocks = filtered_df[filtered_df["category"] == "Stocks"]["amount"].sum()
+    mutual_funds = filtered_df[filtered_df["category"] == "Mutual Funds"]["amount"].sum()
     balance = income - expense
 
     col_a, col_b, col_c = st.columns(3)
@@ -506,7 +506,7 @@ def render_search_filter_tab(notion_service):
             display_df = filtered_df[["date_display", "time", "type", "category", "amount", "description"]].copy()
             display_df.columns = ["Date", "Time", "Type", "Category", "Amount (PKR)", "Description"]
             display_df.index = range(1, len(display_df) + 1)
-            st.dataframe(display_df, use_container_width=True)
+            st.dataframe(display_df, width="stretch")
 
             st.subheader("Visual Analysis")
             chart_col1, chart_col2 = st.columns(2)
