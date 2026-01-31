@@ -76,7 +76,7 @@ class NotionService:
             st.error(f"Failed to initialize Notion client: {e}")
             return None
 
-    @st.cache_data(ttl=300)
+    
     def get_transactions(_self):
         """Fetch all transactions from Notion"""
         transactions = []
