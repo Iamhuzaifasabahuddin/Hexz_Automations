@@ -5,9 +5,8 @@ import calendar
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import pytz
 
-pkt = pytz.timezone("Asia/Karachi")
+
 notion = Client(auth=os.environ["NOTION_TOKEN"])
 datasource_id = os.environ["NOTION_DATASOURCE_ID"]
 
@@ -71,7 +70,7 @@ def get_all_transactions():
 
 def get_previous_month_summary(transactions):
     """Generate summary for the previous month"""
-    today = datetime.now(pkt)
+    today = datetime.now()
 
     if today.month == 1:
         prev_month = 12
