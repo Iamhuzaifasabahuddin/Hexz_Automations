@@ -1,11 +1,6 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
+import streamlit as st
 
-# --------------------------------------------------
-# Page configuration
-# --------------------------------------------------
 st.set_page_config(
     page_title="Investment Portfolio Analysis",
     page_icon="💰",
@@ -16,11 +11,12 @@ st.set_page_config(
 
 def format_pkr(amount):
     if amount >= 10000000:
-        return f'PKR {amount/10000000:.2f} Cr'
+        return f'PKR {amount / 10000000:.2f} Cr'
     elif amount >= 100000:
-        return f'PKR {amount/100000:.2f} Lac'
+        return f'PKR {amount / 100000:.2f} Lac'
     else:
         return f'PKR {amount:,.0f}'
+
 
 def calculate_sip(monthly_investment, annual_return, years):
     monthly_rate = annual_return / 12 / 100
@@ -29,7 +25,8 @@ def calculate_sip(monthly_investment, annual_return, years):
     if monthly_rate == 0:
         return monthly_investment * months
 
-    return monthly_investment * ((1 + monthly_rate)**months - 1) / monthly_rate * (1 + monthly_rate)
+    return monthly_investment * ((1 + monthly_rate) ** months - 1) / monthly_rate * (1 + monthly_rate)
+
 
 def calculate_portfolio(allocations, returns, years):
     total = 0
@@ -46,11 +43,13 @@ def calculate_portfolio(allocations, returns, years):
         "roi": ((total - invested) / invested) * 100
     }
 
+
 def calculate_yearly_growth(allocations, returns, max_years):
     return [
         calculate_portfolio(allocations, returns, y)["total"]
         for y in range(1, max_years + 1)
     ]
+
 
 def apply_market_scenario(equity, balanced, stocks, scenario):
     if scenario == "Bear":
@@ -61,7 +60,6 @@ def apply_market_scenario(equity, balanced, stocks, scenario):
 
 
 st.markdown("## 💰 Investment Portfolio Analysis")
-
 
 st.sidebar.header("⚙️ Investment Parameters")
 
@@ -109,7 +107,6 @@ st.info(
     f"- PSX/Stocks: {stock_roi:.1f}%"
 )
 
-
 option1_equity = monthly_amount * 0.75
 option1_balanced = monthly_amount * 0.25
 
@@ -141,7 +138,6 @@ options = [
 results = [calculate_portfolio(o["allocations"], o["returns"], years) for o in options]
 best_index = max(range(len(results)), key=lambda i: results[i]["total"])
 
-
 st.header("📊 Investment Options Comparison")
 cols = st.columns(3)
 
@@ -152,7 +148,6 @@ for i, (col, opt, res) in enumerate(zip(cols, options, results)):
         st.metric("Invested", format_pkr(res["invested"]))
         st.metric("Gains", format_pkr(res["gains"]))
         st.metric("ROI", f"{res['roi']:.2f}%")
-
 
 st.header("📈 Portfolio Growth")
 
@@ -179,7 +174,6 @@ fig.update_layout(
 
 st.plotly_chart(fig, width="stretch")
 
-
 st.header("💵 Final Value Comparison")
 
 fig_bar = go.Figure(go.Bar(
@@ -196,7 +190,6 @@ fig_bar.update_layout(
 )
 
 st.plotly_chart(fig_bar, width="stretch")
-
 
 st.warning("""
 ⚠️ **Important Notes**
