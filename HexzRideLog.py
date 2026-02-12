@@ -26,10 +26,11 @@ def setup_page():
     """, unsafe_allow_html=True)
 
 
-def get_auth_config(cookie_key):
+def get_auth_config():
     """Get authentication configuration from secrets"""
     cookie_name = st.secrets.get("cookie_name", "hexz_budget_cookie")
-    # cookie_key = st.secrets["cookie_key"]
+    cookie_key = st.secrets["cookie_key"]
+    print(cookie_key)
     cookie_expiry_days = int(st.secrets.get("cookie_expiry_days", 30))
 
     return {
@@ -372,13 +373,8 @@ import extra_streamlit_components as stx
 def main():
     """Main application entry point"""
     setup_page()
-    cookie_manager = stx.CookieManager(key="Testing")
-    all_cookies = cookie_manager.get_all()
 
-    cookie_name = st.secrets.get("cookie_name", "hexz_budget_cookie")
-    direct_cookie = cookie_manager.get(cookie_name)
-
-    config = get_auth_config(direct_cookie)
+    config = get_auth_config()
     authenticator = stauth.Authenticate(
         config['credentials'],
         config['cookie']['name'],
