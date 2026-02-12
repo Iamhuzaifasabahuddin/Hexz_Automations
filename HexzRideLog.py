@@ -30,7 +30,6 @@ def get_auth_config():
     """Get authentication configuration from secrets"""
     cookie_name = st.secrets.get("cookie_name", "hexz_budget_cookie")
     cookie_key = st.secrets["cookie_key"]
-    print(cookie_key)
     cookie_expiry_days = int(st.secrets.get("cookie_expiry_days", 30))
 
     return {
@@ -375,6 +374,8 @@ def main():
     setup_page()
 
     config = get_auth_config()
+
+    st.write(config)
     authenticator = stauth.Authenticate(
         config['credentials'],
         config['cookie']['name'],
