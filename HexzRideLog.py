@@ -41,7 +41,7 @@ class CookieAuth:
         self.expiry_days = int(st.secrets.get("cookie_expiry_days", 30))
         self.username = st.secrets.get("auth_username_hexz", "hexz")
         self.user_name = st.secrets.get("auth_name_hexz", "Hexz User")
-        self.password_hash = st.secrets.get("auth_password_hash", "")
+        self.password_hash = st.secrets.get("auth_password_hexz", "")
 
     def generate_token(self):
         """Generate a secure token"""
