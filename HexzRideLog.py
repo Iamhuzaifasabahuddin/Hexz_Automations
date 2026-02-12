@@ -89,11 +89,28 @@ class CookieAuth:
         return False
 
     def is_authenticated(self):
-        """Check if user is authenticated"""
-        if st.session_state.get('authentication_status', False):
+        """Check authentication with proper cookie load handling"""
+
+        # If already authenticated in session, return immediately
+        if st.session_state.get("authentication_status"):
             return True
 
-        return self.check_cookie()
+        # Wait for cookies to load
+        cookies = self.cookie_manager.get_all()
+
+        # If cookies haven't loaded yet, return None (pending state)
+        if cookies is None:
+            return None
+
+        if self.cookie_name in cookies:
+            token = cookies[self.cookie_name]
+            if self.verify_token(token):
+                st.session_state.authentication_status = True
+                st.session_state.username = self.username
+                st.session_state.name = self.user_name
+                return True
+
+        return False
 
     def logout(self):
         """Clear authentication"""
@@ -437,18 +454,17 @@ def render_search_filter_tab(notion_service):
 
 def main():
     """Main application entry point"""
-
-    if 'authentication_status' not in st.session_state:
-        auth = CookieAuth()
-        auth.check_cookie()
-
     setup_page()
 
-    if 'auth' not in st.session_state:
-        st.session_state.auth = CookieAuth()
-    auth = st.session_state.auth
+    auth = CookieAuth()
 
-    if not st.session_state.get('authentication_status', False):
+    auth_state = auth.is_authenticated()
+
+    if auth_state is None:
+        with st.spinner("Checking authentication..."):
+            st.stop()
+
+    if auth_state is False:
         login_page(auth)
         return
 
@@ -456,6 +472,7 @@ def main():
 
     if st.button("🚪 Logout"):
         auth.logout()
+        st.rerun()
 
     notion_service = NotionService()
     main_tabs = st.tabs(["🚖 Add Ride", "📊 View Rides", "🔍 Search & Filter"])
@@ -468,6 +485,7 @@ def main():
 
     with main_tabs[2]:
         render_search_filter_tab(notion_service)
+
 
 if __name__ == "__main__":
     main()
