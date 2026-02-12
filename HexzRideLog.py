@@ -89,28 +89,13 @@ class CookieAuth:
         return False
 
     def is_authenticated(self):
-        """Check authentication with proper cookie load handling"""
-
-        # If already authenticated in session, return immediately
-        if st.session_state.get("authentication_status"):
+        """Check if user is authenticated"""
+        # First check session state
+        if st.session_state.get('authentication_status', False):
             return True
 
-        # Wait for cookies to load
-        cookies = self.cookie_manager.get_all()
-
-        # If cookies haven't loaded yet, return None (pending state)
-        if cookies is None:
-            return None
-
-        if self.cookie_name in cookies:
-            token = cookies[self.cookie_name]
-            if self.verify_token(token):
-                st.session_state.authentication_status = True
-                st.session_state.username = self.username
-                st.session_state.name = self.user_name
-                return True
-
-        return False
+        # If not in session, check cookie
+        return self.check_cookie()
 
     def logout(self):
         """Clear authentication"""
@@ -458,13 +443,8 @@ def main():
 
     auth = CookieAuth()
 
-    auth_state = auth.is_authenticated()
 
-    if auth_state is None:
-        with st.spinner("Checking authentication..."):
-            st.stop()
-
-    if auth_state is False:
+    if not auth.is_authenticated():
         login_page(auth)
         return
 
