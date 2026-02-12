@@ -107,7 +107,7 @@ class CookieAuth:
 
 def login_page(auth):
     """Display login page"""
-    st.title("🔑 Hexz Ride Tracker Login")
+    st.title("🔑 Hexz Budget Tracker Login")
 
     with st.form("login_form"):
         username = st.text_input("Username")
