@@ -392,31 +392,36 @@ def main():
         config['credentials'],
         config['cookie']['name'],
         config['cookie']['key'],
-        config['cookie']['expiry_days']
+        config['cookie']['expiry_days'],
+        auto_hash=False
     )
 
-    # Check what authenticator sees
-    auth_cookie = authenticator.cookie_controller.get_cookie()
-    st.sidebar.write(f"**Authenticator cookie:** {auth_cookie}")
-
-    authenticator.login(location='main', key='login_form')
+    if st.session_state.get('authentication_status') is None:
+        st.title("🔑 Hexz Ride Tracker Login")
+        authenticator.login(location="main")
 
     if st.session_state.get('authentication_status') is True:
         st.title(f"💰 Welcome {st.session_state.get('name')}!")
+
         authenticator.logout('Logout', 'sidebar')
 
         notion_service = NotionService()
-
         main_tabs = st.tabs(["🚖 Add Ride", "📊 View Rides", "🔍 Search & Filter"])
 
         with main_tabs[0]:
             render_add_ride_tab(notion_service)
+
         with main_tabs[1]:
             render_view_rides_tab(notion_service)
+
         with main_tabs[2]:
             render_search_filter_tab(notion_service)
 
     elif st.session_state.get('authentication_status') is False:
-        st.error('❌ Username/password is incorrect')
-    else:
-        st.warning('👆 Please enter your username and password')
+        st.error('Username/password is incorrect')
+    elif st.session_state.get('authentication_status') is None:
+        st.warning('Please enter your username and password')
+
+
+if __name__ == "__main__":
+    main()
