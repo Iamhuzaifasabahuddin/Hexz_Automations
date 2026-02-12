@@ -346,7 +346,6 @@ def render_search_filter_tab(notion_service):
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Total Amount", f"PKR {filtered_df['amount'].sum():,.2f}")
-            with col2:
                 st.metric("Average Amount", f"PKR {filtered_df['amount'].mean():,.2f}")
             with col3:
                 st.metric("Number of Rides", len(filtered_df))
@@ -380,7 +379,19 @@ def main():
         config['cookie']['expiry_days'],
         auto_hash=False
     )
+    st.sidebar.write("### 🔍 Debug Info")
 
+    # Get the cookie value
+    cookie_value = authenticator.cookie_controller.get_cookie()
+    st.sidebar.write(f"**Cookie Name:** {config['cookie']['name']}")
+    st.sidebar.write(f"**Cookie Value:** {cookie_value}")
+    st.sidebar.write(f"**Cookie Expiry Days:** {config['cookie']['expiry_days']}")
+
+    # Print session state
+    st.sidebar.write("**Session State:**")
+    st.sidebar.write(f"- Authentication Status: {st.session_state.get('authentication_status')}")
+    st.sidebar.write(f"- Name: {st.session_state.get('name')}")
+    st.sidebar.write(f"- Username: {st.session_state.get('username')}")
     if st.session_state.get('authentication_status') is None:
         st.title("🔑 Hexz Ride Tracker Login")
         authenticator.login(location="main")
@@ -388,8 +399,7 @@ def main():
     if st.session_state.get('authentication_status') is True:
         st.title(f"💰 Welcome {st.session_state.get('name')}!")
 
-        if st.button("🚪 Logout"):
-            authenticator.logout()
+        authenticator.logout('Logout', 'sidebar')
 
         notion_service = NotionService()
         main_tabs = st.tabs(["🚖 Add Ride", "📊 View Rides", "🔍 Search & Filter"])
