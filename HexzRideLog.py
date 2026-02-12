@@ -90,24 +90,17 @@ class CookieAuth:
 
     def is_authenticated(self):
         """Check if user is authenticated"""
-        # First check session state
         if st.session_state.get('authentication_status', False):
             return True
 
-        # If not in session, check cookie
         return self.check_cookie()
 
     def logout(self):
         """Clear authentication"""
         self.cookie_manager.delete(self.cookie_name)
-
-        # Clear session state
         st.session_state.authentication_status = False
         st.session_state.username = None
         st.session_state.name = None
-
-        # Force page reload
-        st.rerun()
 
 
 def login_page(auth):
@@ -444,22 +437,25 @@ def render_search_filter_tab(notion_service):
 
 def main():
     """Main application entry point"""
+
+    if 'authentication_status' not in st.session_state:
+        auth = CookieAuth()
+        auth.check_cookie()
+
     setup_page()
 
-    # Initialize cookie-based auth
-    auth = CookieAuth()
+    if 'auth' not in st.session_state:
+        st.session_state.auth = CookieAuth()
+    auth = st.session_state.auth
 
-
-    if not auth.is_authenticated():
+    if not st.session_state.get('authentication_status', False):
         login_page(auth)
         return
 
-    # User is authenticated - show main app
     st.title(f"💰 Welcome {st.session_state.get('name')}!")
 
     if st.button("🚪 Logout"):
         auth.logout()
-        st.rerun()
 
     notion_service = NotionService()
     main_tabs = st.tabs(["🚖 Add Ride", "📊 View Rides", "🔍 Search & Filter"])
@@ -472,7 +468,6 @@ def main():
 
     with main_tabs[2]:
         render_search_filter_tab(notion_service)
-
 
 if __name__ == "__main__":
     main()
