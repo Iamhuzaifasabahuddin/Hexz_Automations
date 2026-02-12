@@ -46,6 +46,9 @@ def get_auth_config():
             'name': cookie_name,
             'key': cookie_key,
             'expiry_days': cookie_expiry_days
+        },
+        'preauthorized': {
+            'emails': []
         }
     }
 
