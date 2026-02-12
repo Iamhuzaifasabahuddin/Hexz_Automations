@@ -18,12 +18,12 @@ def setup_page():
         initial_sidebar_state="collapsed"
     )
 
-    st.markdown("""
-    <style>
-        #MainMenu {visibility: hidden;}
-        header {visibility: hidden;}
-    </style>
-    """, unsafe_allow_html=True)
+    # st.markdown("""
+    # <style>
+    #     #MainMenu {visibility: hidden;}
+    #     header {visibility: hidden;}
+    # </style>
+    # """, unsafe_allow_html=True)
 
 
 def get_auth_config():
