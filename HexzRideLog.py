@@ -380,14 +380,15 @@ def main():
         auto_hash=False
     )
 
-    if st.session_state.get('authentication_status') is None:
-        st.title("🔑 Hexz Ride Tracker Login")
-        authenticator.login(location="main")
+    # if st.session_state.get('authentication_status') is None:
+    #     st.title("🔑 Hexz Ride Tracker Login")
+    authenticator.login(location="main")
 
     if st.session_state.get('authentication_status') is True:
         st.title(f"💰 Welcome {st.session_state.get('name')}!")
 
-        authenticator.logout('Logout', 'sidebar')
+        if st.button("🚪 Logout"):
+            authenticator.logout()
 
         notion_service = NotionService()
         main_tabs = st.tabs(["🚖 Add Ride", "📊 View Rides", "🔍 Search & Filter"])
