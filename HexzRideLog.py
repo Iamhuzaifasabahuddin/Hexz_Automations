@@ -366,58 +366,57 @@ def render_search_filter_tab(notion_service):
         st.info("❌ No rides recorded yet.")
 
 
+import extra_streamlit_components as stx
+
 
 def main():
     """Main application entry point"""
     setup_page()
+
+    # Direct cookie check using extra_streamlit_components
+    cookie_manager = stx.CookieManager()
+
+    # Wait for cookie manager to initialize
+    all_cookies = cookie_manager.get_all()
+
+    st.sidebar.write("### 🔍 Raw Cookie Debug")
+    st.sidebar.json(all_cookies)
+
+    # Check specific cookie
+    cookie_name = st.secrets.get("cookie_name", "hexz_budget_cookie")
+    direct_cookie = cookie_manager.get(cookie_name)
+    st.sidebar.write(f"**Direct cookie value:** {direct_cookie}")
 
     config = get_auth_config()
     authenticator = stauth.Authenticate(
         config['credentials'],
         config['cookie']['name'],
         config['cookie']['key'],
-        config['cookie']['expiry_days'],
-        auto_hash=False
+        config['cookie']['expiry_days']
     )
-    st.sidebar.write("### 🔍 Debug Info")
 
-    # Get the cookie value
-    cookie_value = authenticator.cookie_controller.get_cookie()
-    st.sidebar.write(f"**Cookie Name:** {config['cookie']['name']}")
-    st.sidebar.write(f"**Cookie Value:** {cookie_value}")
-    st.sidebar.write(f"**Cookie Expiry Days:** {config['cookie']['expiry_days']}")
+    # Check what authenticator sees
+    auth_cookie = authenticator.cookie_controller.get_cookie()
+    st.sidebar.write(f"**Authenticator cookie:** {auth_cookie}")
 
-    # Print session state
-    st.sidebar.write("**Session State:**")
-    st.sidebar.write(f"- Authentication Status: {st.session_state.get('authentication_status')}")
-    st.sidebar.write(f"- Name: {st.session_state.get('name')}")
-    st.sidebar.write(f"- Username: {st.session_state.get('username')}")
-    if st.session_state.get('authentication_status') is None:
-        st.title("🔑 Hexz Ride Tracker Login")
-        authenticator.login(location="main")
+    authenticator.login(location='main', key='login_form')
 
     if st.session_state.get('authentication_status') is True:
         st.title(f"💰 Welcome {st.session_state.get('name')}!")
-
         authenticator.logout('Logout', 'sidebar')
 
         notion_service = NotionService()
+
         main_tabs = st.tabs(["🚖 Add Ride", "📊 View Rides", "🔍 Search & Filter"])
 
         with main_tabs[0]:
             render_add_ride_tab(notion_service)
-
         with main_tabs[1]:
             render_view_rides_tab(notion_service)
-
         with main_tabs[2]:
             render_search_filter_tab(notion_service)
 
     elif st.session_state.get('authentication_status') is False:
-        st.error('Username/password is incorrect')
-    elif st.session_state.get('authentication_status') is None:
-        st.warning('Please enter your username and password')
-
-
-if __name__ == "__main__":
-    main()
+        st.error('❌ Username/password is incorrect')
+    else:
+        st.warning('👆 Please enter your username and password')
