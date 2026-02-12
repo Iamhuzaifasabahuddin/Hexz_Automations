@@ -1,12 +1,12 @@
-import streamlit as st
-from datetime import datetime, timedelta
-import pytz
-import pandas as pd
 import time
-from notion_client import Client
+from datetime import datetime, timedelta
+
+import pandas as pd
+import pytz
+import streamlit as st
 import extra_streamlit_components as stx
+from notion_client import Client
 import hashlib
-import secrets
 
 
 def setup_page():
@@ -26,101 +26,104 @@ def setup_page():
     """, unsafe_allow_html=True)
 
 
+def hash_password(password):
+    """Hash password using SHA256"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
 class CookieAuth:
-    """Handle cookie-based authentication"""
+    """Handle cookie-based passwordless authentication with password fallback"""
 
-    def __init__(self, cookie_name="hexz_auth", cookie_key=None, expiry_days=30):
+    def __init__(self):
         self.cookie_manager = stx.CookieManager()
-        self.cookie_name = cookie_name
-        self.cookie_key = cookie_key or st.secrets.get("cookie_key", "default_key_change_me")
-        self.expiry_days = expiry_days
-        self.username = st.secrets.get("auth_username", "hexz")
-        self.user_name = st.secrets.get("auth_name", "Hexz User")
+        self.cookie_name = st.secrets.get("cookie_name", "hexz_budget_cookie")
+        self.cookie_key = st.secrets.get("cookie_key", "secret_key")
+        self.expiry_days = int(st.secrets.get("cookie_expiry_days", 30))
+        self.username = st.secrets.get("auth_username_hexz", "hexz")
+        self.user_name = st.secrets.get("auth_name_hexz", "Hexz User")
+        self.password_hash = st.secrets.get("auth_password_hash", "")
 
-    def generate_token(self, username):
-        """Generate a secure token for the user"""
-        # Create a token with username + secret key + timestamp
+    def generate_token(self):
+        """Generate a secure token"""
         timestamp = datetime.now().isoformat()
-        data = f"{username}:{self.cookie_key}:{timestamp}"
+        data = f"{self.username}:{self.cookie_key}:{timestamp}"
         return hashlib.sha256(data.encode()).hexdigest()
 
-    def verify_token(self, token, username):
-        """Verify if token is valid (basic check - in production use JWT)"""
-        # For simplicity, we'll just check if cookie exists and matches expected pattern
-        # In production, use proper JWT tokens with expiry
+    def verify_token(self, token):
+        """Verify if token is valid"""
         return len(token) == 64 and token.isalnum()
 
-    def set_auth_cookie(self, username):
+    def verify_password(self, password):
+        """Verify password against hash"""
+        return hash_password(password) == self.password_hash
+
+    def set_auth_cookie(self):
         """Set authentication cookie"""
-        token = self.generate_token(username)
+        token = self.generate_token()
         expiry = datetime.now() + timedelta(days=self.expiry_days)
 
-        # Store token in cookie
         self.cookie_manager.set(
             self.cookie_name,
             token,
             expires_at=expiry
         )
 
-        # Store username in session state
-        st.session_state.authenticated = True
-        st.session_state.username = username
+        st.session_state.authentication_status = True
+        st.session_state.username = self.username
         st.session_state.name = self.user_name
-        st.session_state.auth_token = token
 
-    def check_auth_cookie(self):
-        """Check if valid auth cookie exists"""
+    def check_cookie(self):
+        """Check if valid cookie exists"""
         cookies = self.cookie_manager.get_all()
 
         if self.cookie_name in cookies:
             token = cookies[self.cookie_name]
 
-            if self.verify_token(token, self.username):
+            if self.verify_token(token):
                 # Valid cookie found - auto login
-                st.session_state.authenticated = True
+                st.session_state.authentication_status = True
                 st.session_state.username = self.username
                 st.session_state.name = self.user_name
-                st.session_state.auth_token = token
                 return True
 
         return False
 
-    def logout(self):
-        """Clear authentication"""
-        self.cookie_manager.delete(self.cookie_name)
-        st.session_state.authenticated = False
-        st.session_state.username = None
-        st.session_state.name = None
-        st.session_state.auth_token = None
-
     def is_authenticated(self):
         """Check if user is authenticated"""
         # First check session state
-        if st.session_state.get('authenticated', False):
+        if st.session_state.get('authentication_status', False):
             return True
 
         # If not in session, check cookie
-        return self.check_auth_cookie()
+        return self.check_cookie()
+
+    def logout(self):
+        """Clear authentication"""
+        self.cookie_manager.delete(self.cookie_name)
+        st.session_state.authentication_status = False
+        st.session_state.username = None
+        st.session_state.name = None
 
 
 def login_page(auth):
-    """Display passwordless login page"""
-    st.title("🔑 Hexz Ride Tracker")
-    st.subheader("One-Click Login")
+    """Display login page"""
+    st.title("🔑 Hexz Ride Tracker Login")
 
-    st.info("👋 Click the button below to access your ride tracker")
+    with st.form("login_form"):
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        submit = st.form_submit_button("Login")
 
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        if st.button("🚀 Login to Hexz Ride App", use_container_width=True, type="primary"):
-            # Passwordless login - just click and go
-            auth.set_auth_cookie(st.secrets.get("auth_username", "hexz"))
-            st.success("✅ Login successful! Redirecting...")
-            time.sleep(0.5)
-            st.rerun()
-
-    st.markdown("---")
-    st.caption("🔒 Your session will be saved for 30 days")
+        if submit:
+            # Check credentials
+            if (username == auth.username and auth.verify_password(password)):
+                # Set cookie for future visits
+                auth.set_auth_cookie()
+                st.success("✅ Login successful!")
+                time.sleep(0.5)
+                st.rerun()
+            else:
+                st.error("❌ Invalid username or password")
 
 
 class NotionService:
@@ -438,26 +441,20 @@ def main():
     """Main application entry point"""
     setup_page()
 
-    # Initialize authentication
-    auth = CookieAuth(
-        cookie_name=st.secrets.get("cookie_name", "hexz_auth"),
-        cookie_key=st.secrets.get("cookie_key", "change_me_to_random_string"),
-        expiry_days=int(st.secrets.get("cookie_expiry_days", 30))
-    )
+    # Initialize cookie-based auth
+    auth = CookieAuth()
 
-    # Check if user is authenticated (checks cookie automatically)
+
     if not auth.is_authenticated():
         login_page(auth)
         return
 
     # User is authenticated - show main app
-    st.title(f"💰 Welcome {st.session_state.get('name', 'User')}!")
+    st.title(f"💰 Welcome {st.session_state.get('name')}!")
 
-    col1, col2 = st.columns([6, 1])
-    with col2:
-        if st.button("🚪 Logout"):
-            auth.logout()
-            st.rerun()
+    if st.button("🚪 Logout"):
+        auth.logout()
+        st.rerun()
 
     notion_service = NotionService()
     main_tabs = st.tabs(["🚖 Add Ride", "📊 View Rides", "🔍 Search & Filter"])
