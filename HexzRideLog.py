@@ -376,10 +376,10 @@ def main():
 
     config = get_auth_config()
     authenticator = stauth.Authenticate(
-        config['credentials'],
-        config['cookie']['name'],
-        config['cookie']['key'],
-        config['cookie']['expiry_days'],
+        credentials=config['credentials'],
+        cookie_name = "hexz_budget_cookie",
+        cookie_key="12345678910abcdef",
+        cookie_expiry_days=30,
         auto_hash=False
     )
 
