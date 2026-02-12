@@ -366,23 +366,24 @@ def render_search_filter_tab(notion_service):
         st.info("❌ No rides recorded yet.")
 
 
-import extra_streamlit_components as stx
 
 
-def main():
-    """Main application entry point"""
-    setup_page()
-
-    config = get_auth_config()
-
-    st.write(config)
-    authenticator = stauth.Authenticate(
+@st.cache_resource
+def get_authenticator(config):
+    return stauth.Authenticate(
         config['credentials'],
         config['cookie']['name'],
         config['cookie']['key'],
         config['cookie']['expiry_days'],
         auto_hash=False
     )
+def main():
+    """Main application entry point"""
+    setup_page()
+
+    config = get_auth_config()
+
+    authenticator = get_authenticator(config)
 
     if st.session_state.get('authentication_status') is None:
         st.title("🔑 Hexz Ride Tracker Login")
