@@ -46,9 +46,6 @@ def get_auth_config():
             'name': cookie_name,
             'key': cookie_key,
             'expiry_days': cookie_expiry_days
-        },
-        'preauthorized': {
-            'emails': []
         }
     }
 
@@ -376,16 +373,16 @@ def main():
 
     config = get_auth_config()
     authenticator = stauth.Authenticate(
-        credentials=config['credentials'],
-        cookie_name = "hexz_budget_cookie",
-        cookie_key="12345678910abcdef",
-        cookie_expiry_days=30,
+        config['credentials'],
+        config['cookie']['name'],
+        config['cookie']['key'],
+        config['cookie']['expiry_days'],
         auto_hash=False
     )
 
-    # if st.session_state.get('authentication_status') is None:
-    #     st.title("🔑 Hexz Ride Tracker Login")
-    authenticator.login(location="main")
+    if st.session_state.get('authentication_status') is None:
+        st.title("🔑 Hexz Ride Tracker Login")
+        authenticator.login(location="main")
 
     if st.session_state.get('authentication_status') is True:
         st.title(f"💰 Welcome {st.session_state.get('name')}!")
