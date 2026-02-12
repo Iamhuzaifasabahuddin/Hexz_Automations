@@ -374,7 +374,7 @@ def main():
     setup_page()
 
     # Direct cookie check using extra_streamlit_components
-    cookie_manager = stx.CookieManager()
+    cookie_manager = stx.CookieManager(key="Testing")
 
     # Wait for cookie manager to initialize
     all_cookies = cookie_manager.get_all()
