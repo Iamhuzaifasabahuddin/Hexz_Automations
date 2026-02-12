@@ -18,18 +18,18 @@ def setup_page():
         initial_sidebar_state="collapsed"
     )
 
-    # st.markdown("""
-    # <style>
-    #     #MainMenu {visibility: hidden;}
-    #     header {visibility: hidden;}
-    # </style>
-    # """, unsafe_allow_html=True)
+    st.markdown("""
+    <style>
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+    </style>
+    """, unsafe_allow_html=True)
 
 
-def get_auth_config():
+def get_auth_config(cookie_key):
     """Get authentication configuration from secrets"""
     cookie_name = st.secrets.get("cookie_name", "hexz_budget_cookie")
-    cookie_key = st.secrets["cookie_key"]
+    # cookie_key = st.secrets["cookie_key"]
     cookie_expiry_days = int(st.secrets.get("cookie_expiry_days", 30))
 
     return {
@@ -372,22 +372,13 @@ import extra_streamlit_components as stx
 def main():
     """Main application entry point"""
     setup_page()
-
-    # Direct cookie check using extra_streamlit_components
     cookie_manager = stx.CookieManager(key="Testing")
-
-    # Wait for cookie manager to initialize
     all_cookies = cookie_manager.get_all()
 
-    st.sidebar.write("### 🔍 Raw Cookie Debug")
-    st.sidebar.json(all_cookies)
-
-    # Check specific cookie
     cookie_name = st.secrets.get("cookie_name", "hexz_budget_cookie")
     direct_cookie = cookie_manager.get(cookie_name)
-    st.sidebar.write(f"**Direct cookie value:** {direct_cookie}")
 
-    config = get_auth_config()
+    config = get_auth_config(direct_cookie)
     authenticator = stauth.Authenticate(
         config['credentials'],
         config['cookie']['name'],
