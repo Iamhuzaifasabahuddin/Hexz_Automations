@@ -425,7 +425,7 @@ def render_search_filter_tab(notion_service):
             display_df = filtered_df[["date_display", "time", "amount", "month", "year"]].copy()
             display_df.columns = ["Date", "Time", "Amount (PKR)", "Month", "Year"]
             display_df.index = range(1, len(display_df) + 1)
-            st.dataframe(display_df, use_container_width=True)
+            st.dataframe(display_df, width="stretch")
 
             st.subheader("Spending Over Time")
             chart_df = filtered_df.groupby(filtered_df["date"].dt.date)["amount"].sum().reset_index()

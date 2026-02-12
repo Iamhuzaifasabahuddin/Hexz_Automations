@@ -1,12 +1,12 @@
+import hashlib
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
+import extra_streamlit_components as stx
 import pandas as pd
 import pytz
 import streamlit as st
-import streamlit_authenticator as stauth
 from notion_client import Client
-
 
 
 def setup_page():
@@ -26,35 +26,114 @@ def setup_page():
     """, unsafe_allow_html=True)
 
 
-def get_auth_config():
-    """Get authentication configuration from secrets"""
-    return {
-        'credentials': {
-            'usernames': {
-                st.secrets["auth_username_hexz"]: {
-                    'name': st.secrets["auth_name_hexz"],
-                    'email': st.secrets["auth_email_hexz"],
-                    'password': st.secrets["auth_password_hexz"]
-                }
-            }
-        },
-        'cookie': {
-            'name': st.secrets.get("cookie_name", "hexz_budget_cookie"),
-            'key': st.secrets["cookie_key"],
-            'expiry_days': st.secrets.get("cookie_expiry_days", 30)
-        }
-    }
+def hash_password(password):
+    """Hash password using SHA256"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+class CookieAuth:
+    """Handle cookie-based passwordless authentication with password fallback"""
+
+    def __init__(self):
+        self.cookie_manager = stx.CookieManager()
+        self.cookie_name = st.secrets.get("cookie_name", "hexz_budget_cookie")
+        self.cookie_key = st.secrets.get("cookie_key", "secret_key")
+        self.expiry_days = int(st.secrets.get("cookie_expiry_days", 30))
+        self.username = st.secrets.get("auth_username_hexz", "hexz")
+        self.user_name = st.secrets.get("auth_name_hexz", "Hexz User")
+        self.password_hash = st.secrets.get("auth_password_hexz", "")
+
+    def generate_token(self):
+        """Generate a secure token"""
+        timestamp = datetime.now().isoformat()
+        data = f"{self.username}:{self.cookie_key}:{timestamp}"
+        return hashlib.sha256(data.encode()).hexdigest()
+
+    def verify_token(self, token):
+        """Verify if token is valid"""
+        return len(token) == 64 and token.isalnum()
+
+    def verify_password(self, password):
+        """Verify password against hash"""
+        return hash_password(password) == self.password_hash
+
+    def set_auth_cookie(self):
+        """Set authentication cookie"""
+        token = self.generate_token()
+        expiry = datetime.now() + timedelta(days=self.expiry_days)
+
+        self.cookie_manager.set(
+            self.cookie_name,
+            token,
+            expires_at=expiry
+        )
+
+        st.session_state.authentication_status = True
+        st.session_state.username = self.username
+        st.session_state.name = self.user_name
+
+    def check_cookie(self):
+        """Check if valid cookie exists"""
+        cookies = self.cookie_manager.get_all()
+
+        if self.cookie_name in cookies:
+            token = cookies[self.cookie_name]
+
+            if self.verify_token(token):
+                # Valid cookie found - auto login
+                st.session_state.authentication_status = True
+                st.session_state.username = self.username
+                st.session_state.name = self.user_name
+                return True
+
+        return False
+
+    def is_authenticated(self):
+        """Check if user is authenticated"""
+        # First check session state
+        if st.session_state.get('authentication_status', False):
+            return True
+
+        # If not in session, check cookie
+        return self.check_cookie()
+
+    def logout(self):
+        """Clear authentication"""
+        self.cookie_manager.delete(self.cookie_name)
+        st.session_state.authentication_status = False
+        st.session_state.username = None
+        st.session_state.name = None
+
+
+def login_page(auth):
+    """Display login page"""
+    st.title("🔑 Hexz Ride Tracker Login")
+
+    with st.form("login_form"):
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        submit = st.form_submit_button("Login")
+
+        if submit:
+            # Check credentials
+            if (username == auth.username and auth.verify_password(password)):
+                # Set cookie for future visits
+                auth.set_auth_cookie()
+                st.success("✅ Login successful!")
+                time.sleep(0.5)
+                st.rerun()
+            else:
+                st.error("❌ Invalid username or password")
 
 
 EXPENSE_CATEGORIES = [
     "Food & Dining", "Transportation", "Shopping", "Entertainment",
-    "Bills & Utilities", "Healthcare", "Education", "Savings", "Physical Investments", "Stocks","Mutual Funds", "Other"
+    "Bills & Utilities", "Healthcare", "Education", "Savings", "Physical Investments", "Stocks", "Mutual Funds", "Other"
 ]
 
 INCOME_CATEGORIES = [
     "Salary", "Freelance", "Bonus", "Investment", "Gift", "Other"
 ]
-
 
 
 class NotionService:
@@ -75,7 +154,7 @@ class NotionService:
         except Exception as e:
             st.error(f"Failed to initialize Notion client: {e}")
             return None
-  
+
     @st.cache_data(ttl=300)
     def get_transactions(_self):
         """Fetch all transactions from Notion"""
@@ -156,7 +235,6 @@ class NotionService:
             return False
 
 
-
 def render_add_transaction_tab(notion_service):
     """Render the Add Transaction tab"""
     st.header("💸 Add a Transaction")
@@ -189,7 +267,6 @@ def render_add_transaction_tab(notion_service):
                                             description)
         else:
             st.warning("⚠️ Missing or Invalid Data Detected!")
-
 
 
 def render_dashboard(df):
@@ -537,44 +614,31 @@ def main():
     """Main application entry point"""
     setup_page()
 
-    config = get_auth_config()
-    authenticator = stauth.Authenticate(
-        config['credentials'],
-        config['cookie']['name'],
-        config['cookie']['key'],
-        config['cookie']['expiry_days']
-    )
+    # Initialize cookie-based auth
+    auth = CookieAuth()
 
-    if st.session_state.get('authentication_status') is None:
-        st.title("🔑 Hexz Budget Tracker Login")
+    if not auth.is_authenticated():
+        login_page(auth)
+        return
 
-    authenticator.login()
+    # User is authenticated - show main app
+    st.title(f"💰 Welcome {st.session_state.get('name')}!")
 
-    if st.session_state.get('authentication_status') is True:
-        st.title(f"💰 Welcome {st.session_state.get('name')}!")
+    if st.button("🚪 Logout"):
+        auth.logout()
+        st.rerun()
 
-        if st.button("🚪 Logout"):
-            authenticator.logout()
+    notion_service = NotionService()
+    main_tabs = st.tabs(["💸 Add Transaction", "📊 View Budget", "🔍 Search & Filter"])
 
-        notion_service = NotionService()
-        main_tabs = st.tabs(["💸 Add Transaction", "📊 View Budget", "🔍 Search & Filter"])
+    with main_tabs[0]:
+        render_add_transaction_tab(notion_service)
 
-        with main_tabs[0]:
-            render_add_transaction_tab(notion_service)
+    with main_tabs[1]:
+        render_budget_overview_tab(notion_service)
 
-        with main_tabs[1]:
-            render_budget_overview_tab(notion_service)
-
-        with main_tabs[2]:
-            render_search_filter_tab(notion_service)
-
-    elif st.session_state.get('authentication_status') is False:
-        st.error('Username/password is incorrect')
-        st.stop()
-    elif st.session_state.get('authentication_status') is None:
-        st.warning('Please enter your username and password')
-        st.stop()
-
+    with main_tabs[2]:
+        render_search_filter_tab(notion_service)
 
 if __name__ == "__main__":
     main()
