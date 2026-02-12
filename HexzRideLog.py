@@ -99,15 +99,14 @@ class CookieAuth:
 
     def logout(self):
         """Clear authentication"""
-        past_date = datetime.now() - timedelta(days=1)
-        self.cookie_manager.set(
-            self.cookie_name,
-            "",  # Empty value
-            expires_at=past_date
-        )
+        self.cookie_manager.delete(self.cookie_name)
+
+        # Clear session state
         st.session_state.authentication_status = False
         st.session_state.username = None
         st.session_state.name = None
+
+        # Force page reload
         st.rerun()
 
 
