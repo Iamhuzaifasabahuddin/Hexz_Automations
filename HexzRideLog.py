@@ -367,23 +367,18 @@ def render_search_filter_tab(notion_service):
 
 
 
+def main():
+    """Main application entry point"""
+    setup_page()
 
-@st.cache_resource
-def get_authenticator(config):
-    return stauth.Authenticate(
+    config = get_auth_config()
+    authenticator = stauth.Authenticate(
         config['credentials'],
         config['cookie']['name'],
         config['cookie']['key'],
         config['cookie']['expiry_days'],
         auto_hash=False
     )
-def main():
-    """Main application entry point"""
-    setup_page()
-
-    config = get_auth_config()
-
-    authenticator = get_authenticator(config)
 
     if st.session_state.get('authentication_status') is None:
         st.title("🔑 Hexz Ride Tracker Login")
