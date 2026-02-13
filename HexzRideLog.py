@@ -440,16 +440,13 @@ def render_search_filter_tab(notion_service):
 def main():
     """Main application entry point"""
     setup_page()
-    # --- BOOTSTRAP PHASE ---
-    if "bootstrapped" not in st.session_state:
-        with st.spinner("🔄 Initializing secure session..."):
-            time.sleep(1)  # slight delay so cookies can load
-        st.session_state.bootstrapped = True
-        st.rerun()
+
     auth = CookieAuth()
 
 
     if not auth.is_authenticated():
+        with st.spinner("🔄 Initializing secure session..."):
+            time.sleep(1.5)
         login_page(auth)
         return
 
