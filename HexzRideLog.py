@@ -443,23 +443,31 @@ def main():
 
     auth = CookieAuth()
 
-    # Initialize authentication status if not set
-    if 'authentication_status' not in st.session_state:
-        st.session_state.authentication_status = None
+    # Initialize a flag to track if we've checked cookies
+    if 'cookies_checked' not in st.session_state:
+        st.session_state.cookies_checked = False
 
-    # Check cookie on first load before rendering anything
-    if st.session_state.authentication_status is None:
-        # Show a brief loading state while checking cookie
-        with st.spinner("Checking authentication..."):
-            auth.check_cookie()
+    # On first load, try to get cookies and mark as checked
+    if not st.session_state.cookies_checked:
+        cookies = auth.cookie_manager.get_all()
 
-        # If still not authenticated after cookie check, show login
-        if not st.session_state.get('authentication_status', False):
-            login_page(auth)
-            return
+        # Check if cookies are loaded (not None and not empty dict on first render)
+        if cookies is not None:
+            st.session_state.cookies_checked = True
 
-    # If we get here but still not authenticated, show login
-    if not auth.is_authenticated():
+            # Check for valid auth cookie
+            if auth.cookie_name in cookies:
+                token = cookies[auth.cookie_name]
+                if auth.verify_token(token):
+                    st.session_state.authentication_status = True
+                    st.session_state.username = auth.username
+                    st.session_state.name = auth.user_name
+        else:
+            # Cookies not loaded yet, rerun to try again
+            st.rerun()
+
+    # Now check authentication
+    if not st.session_state.get('authentication_status', False):
         login_page(auth)
         return
 
