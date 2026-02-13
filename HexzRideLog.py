@@ -98,12 +98,17 @@ class CookieAuth:
 
     def logout(self):
         """Clear authentication"""
-        self.cookie_manager.delete(self.cookie_name)
+        # Clear session state first
         st.session_state.authentication_status = False
         st.session_state.username = None
         st.session_state.name = None
+
+        # Check if cookie exists before deleting
+        cookies = self.cookie_manager.get_all()
+        if self.cookie_name in cookies:
+            self.cookie_manager.delete(self.cookie_name)
+
         time.sleep(1.5)
-        st.rerun()
 
 
 def login_page(auth):
