@@ -89,15 +89,11 @@ class CookieAuth:
 
     def is_authenticated(self):
         """Check if user is authenticated"""
-        # If explicitly logged out, don't check cookie
         if st.session_state.get('authentication_status') is False:
             return False
 
-        # Check if already authenticated in session
         if st.session_state.get('authentication_status') is True:
             return True
-
-        # If not in session, check cookie
         return self.check_cookie()
 
     def logout(self):

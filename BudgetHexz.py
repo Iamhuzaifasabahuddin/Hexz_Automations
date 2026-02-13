@@ -90,11 +90,11 @@ class CookieAuth:
 
     def is_authenticated(self):
         """Check if user is authenticated"""
-        # First check session state
-        if st.session_state.get('authentication_status', False):
-            return True
+        if st.session_state.get('authentication_status') is False:
+            return False
 
-        # If not in session, check cookie
+        if st.session_state.get('authentication_status') is True:
+            return True
         return self.check_cookie()
 
     def logout(self):
@@ -617,10 +617,11 @@ def main():
     auth = CookieAuth()
 
     if not auth.is_authenticated():
+        with st.spinner("🔄 Initializing secure session..."):
+            time.sleep(1.5)
         login_page(auth)
         return
 
-    # User is authenticated - show main app
     st.title(f"💰 Welcome {st.session_state.get('name')}!")
 
     if st.button("🚪 Logout"):
