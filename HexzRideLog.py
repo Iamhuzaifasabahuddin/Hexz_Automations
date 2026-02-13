@@ -443,7 +443,22 @@ def main():
 
     auth = CookieAuth()
 
+    # Initialize authentication status if not set
+    if 'authentication_status' not in st.session_state:
+        st.session_state.authentication_status = None
 
+    # Check cookie on first load before rendering anything
+    if st.session_state.authentication_status is None:
+        # Show a brief loading state while checking cookie
+        with st.spinner("Checking authentication..."):
+            auth.check_cookie()
+
+        # If still not authenticated after cookie check, show login
+        if not st.session_state.get('authentication_status', False):
+            login_page(auth)
+            return
+
+    # If we get here but still not authenticated, show login
     if not auth.is_authenticated():
         login_page(auth)
         return
@@ -465,7 +480,6 @@ def main():
 
     with main_tabs[2]:
         render_search_filter_tab(notion_service)
-
 
 if __name__ == "__main__":
     main()
