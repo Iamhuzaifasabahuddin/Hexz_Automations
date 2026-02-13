@@ -89,8 +89,12 @@ class CookieAuth:
 
     def is_authenticated(self):
         """Check if user is authenticated"""
-        # First check session state
-        if st.session_state.get('authentication_status', False):
+        # If explicitly logged out, don't check cookie
+        if st.session_state.get('authentication_status') is False:
+            return False
+
+        # Check if already authenticated in session
+        if st.session_state.get('authentication_status') is True:
             return True
 
         # If not in session, check cookie
@@ -98,17 +102,10 @@ class CookieAuth:
 
     def logout(self):
         """Clear authentication"""
-        # Clear session state first
+        self.cookie_manager.delete(self.cookie_name)
         st.session_state.authentication_status = False
         st.session_state.username = None
         st.session_state.name = None
-
-        # Check if cookie exists before deleting
-        cookies = self.cookie_manager.get_all()
-        if self.cookie_name in cookies:
-            self.cookie_manager.delete(self.cookie_name)
-
-        time.sleep(1.5)
 
 
 def login_page(auth):
