@@ -80,7 +80,6 @@ class CookieAuth:
             token = cookies[self.cookie_name]
 
             if self.verify_token(token):
-                # Valid cookie found - auto login
                 st.session_state.authentication_status = True
                 st.session_state.username = self.username
                 st.session_state.name = self.user_name
@@ -103,6 +102,8 @@ class CookieAuth:
         st.session_state.authentication_status = False
         st.session_state.username = None
         st.session_state.name = None
+        time.sleep(1.5)
+        st.rerun()
 
 
 def login_page(auth):
