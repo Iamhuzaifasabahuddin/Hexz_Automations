@@ -76,6 +76,10 @@ class CookieAuth:
         """Check if valid cookie exists"""
         cookies = self.cookie_manager.get_all()
 
+        # If cookies haven't loaded yet, wait and rerun
+        if cookies is None:
+            st.stop()
+
         if self.cookie_name in cookies:
             token = cookies[self.cookie_name]
 
@@ -443,31 +447,8 @@ def main():
 
     auth = CookieAuth()
 
-    # Initialize a flag to track if we've checked cookies
-    if 'cookies_checked' not in st.session_state:
-        st.session_state.cookies_checked = False
 
-    # On first load, try to get cookies and mark as checked
-    if not st.session_state.cookies_checked:
-        cookies = auth.cookie_manager.get_all()
-
-        # Check if cookies are loaded (not None and not empty dict on first render)
-        if cookies is not None:
-            st.session_state.cookies_checked = True
-
-            # Check for valid auth cookie
-            if auth.cookie_name in cookies:
-                token = cookies[auth.cookie_name]
-                if auth.verify_token(token):
-                    st.session_state.authentication_status = True
-                    st.session_state.username = auth.username
-                    st.session_state.name = auth.user_name
-        else:
-            # Cookies not loaded yet, rerun to try again
-            st.rerun()
-
-    # Now check authentication
-    if not st.session_state.get('authentication_status', False):
+    if not auth.is_authenticated():
         login_page(auth)
         return
 
@@ -488,6 +469,7 @@ def main():
 
     with main_tabs[2]:
         render_search_filter_tab(notion_service)
+
 
 if __name__ == "__main__":
     main()
