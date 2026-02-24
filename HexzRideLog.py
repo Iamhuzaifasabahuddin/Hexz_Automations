@@ -114,15 +114,19 @@ def login_page(auth):
         submit = st.form_submit_button("Login")
 
         if submit:
-            # Check credentials
-            if (username == auth.username and auth.verify_password(password)):
-                # Set cookie for future visits
+            if username == auth.username and auth.verify_password(password):
                 auth.set_auth_cookie()
                 st.success("✅ Login successful!")
                 time.sleep(0.5)
                 st.rerun()
             else:
                 st.error("❌ Invalid username or password")
+
+
+MONTHS = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+]
 
 
 class NotionService:
@@ -144,21 +148,33 @@ class NotionService:
             return None
 
     @st.cache_data(ttl=300)
-    def get_rides(_self):
-        """Fetch all rides from Notion"""
+    def get_rides(_self, month=None):
+        """
+        Fetch rides from Notion with optional month filter.
+
+        Args:
+            month: Filter by month name only (e.g., "January"). If None, fetches all rides.
+        """
         rides = []
         has_more = True
         start_cursor = None
 
         try:
             while has_more:
+                query_params = {"data_source_id": _self.datasource_id}
+
+                if month:
+                    query_params["filter"] = {
+                        "property": "Month",
+                        "rich_text": {
+                            "equals": month
+                        }
+                    }
+
                 if start_cursor:
-                    data = _self.client.data_sources.query(
-                        data_source_id=_self.datasource_id,
-                        start_cursor=start_cursor
-                    )
-                else:
-                    data = _self.client.data_sources.query(data_source_id=_self.datasource_id)
+                    query_params["start_cursor"] = start_cursor
+
+                data = _self.client.data_sources.query(**query_params)
 
                 for row in data["results"]:
                     props = row["properties"]
@@ -180,7 +196,7 @@ class NotionService:
 
     def save_ride(self, ride_date, ride_time, amount):
         """Save ride to Notion"""
-        month = ride_date.strftime("%B")
+        month = ride_date.strftime("%B %Y")
         formatted_time = ride_time.strftime("%I:%M %p")
         page_title = f"Ride {ride_date} {ride_time.strftime('%H:%M')}"
 
@@ -260,19 +276,51 @@ def render_all_data(df):
     st.dataframe(month_totals)
 
 
-def render_by_month(df, unique_months, current_month, current_year):
-    """Render by month view"""
+def render_by_month(notion_service):
+    """Render by month view with separate Month and Year selectors, fetching filtered data from Notion"""
     st.subheader("Filter by Month and Year")
 
-    months = ["All"] + unique_months
-    default_month_idx = unique_months.index(current_month) + 1 if current_month in unique_months else 0
-    selected_month = st.selectbox("Select Month", months, index=default_month_idx)
-    selected_year = st.number_input("Select Year", value=current_year, min_value=2025, max_value=current_year)
+    pkt = pytz.timezone("Asia/Karachi")
+    now_pkt = datetime.now(pkt)
 
-    if selected_month == "All":
-        filtered_df = df[df["year"] == selected_year]
-    else:
-        filtered_df = df[(df["year"] == selected_year) & (df["month"] == selected_month)]
+    current_year = now_pkt.year
+    years = list(range(2025, current_year + 1))
+
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_month_name = st.selectbox(
+            "Month",
+            MONTHS,
+            index=now_pkt.month - 1
+        )
+    with col2:
+        selected_year = st.selectbox(
+            "Year",
+            years,
+            index=years.index(current_year)
+        )
+
+    with st.spinner(f"Loading rides for {selected_month_name} {selected_year}..."):
+        rides = notion_service.get_rides(month=f"{selected_month_name} {selected_year}")
+
+    if not rides:
+        st.info(f"No rides found for {selected_month_name} {selected_year}.")
+        return
+
+    df = pd.DataFrame(rides)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df["month"] = df["date"].dt.strftime("%B")
+    df["year"] = df["date"].dt.year
+    df["date_display"] = df["date"].dt.strftime("%d-%B-%Y")
+
+    filtered_df = df[df["year"] == selected_year]
+
+    if filtered_df.empty:
+        st.info(f"No rides found for {selected_month_name} {selected_year}.")
+        return
+
+    filtered_df = filtered_df.sort_values(by="date", ascending=True)
+    filtered_df.index = range(1, len(filtered_df) + 1)
 
     display_df = filtered_df.drop(columns=["id", "date"]).rename(columns={"date_display": "date"})
     st.write(display_df)
@@ -280,8 +328,8 @@ def render_by_month(df, unique_months, current_month, current_year):
     total = filtered_df["amount"].sum()
     avg = filtered_df["amount"].mean() if not filtered_df.empty else 0
 
-    st.metric("💲 Total Spend", f"PKR{total:,.2f}")
-    st.metric("💸 Average Spend", f"PKR{avg:,.2f}")
+    st.metric("💲 Total Spend", f"PKR {total:,.2f}")
+    st.metric("💸 Average Spend", f"PKR {avg:,.2f}")
 
 
 def render_summary(df):
@@ -297,32 +345,59 @@ def render_summary(df):
     st.bar_chart(month_totals.set_index("month"))
 
 
-def render_delete(df, unique_months, current_month, current_year, notion_service):
-    """Render delete rides view"""
+def render_delete(notion_service):
+    """Render delete rides view with separate Month and Year selectors"""
     st.subheader("Delete Rides by Month/Year")
 
-    months = ["All"] + unique_months
-    default_month_idx = unique_months.index(current_month) + 1 if current_month in unique_months else 0
-    selected_month = st.selectbox("Select Month", months, index=default_month_idx, key="delete_box")
-    selected_year = st.number_input("Select Year", value=current_year, min_value=2025, max_value=current_year,
-                                    key="delete_year")
+    pkt = pytz.timezone("Asia/Karachi")
+    now_pkt = datetime.now(pkt)
 
-    if selected_month == "All":
-        filtered_df = df[df["year"] == selected_year]
-    else:
-        filtered_df = df[(df["year"] == selected_year) & (df["month"] == selected_month)]
+    current_year = now_pkt.year
+    years = list(range(2025, current_year + 1))
+
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_month_name = st.selectbox(
+            "Month",
+            MONTHS,
+            index=now_pkt.month - 1,
+            key="delete_month"
+        )
+    with col2:
+        selected_year = st.selectbox(
+            "Year",
+            years,
+            index=years.index(current_year),
+            key="delete_year"
+        )
+
+    with st.spinner(f"Loading rides for {selected_month_name} {selected_year}..."):
+        rides = notion_service.get_rides(month=f"{selected_month_name} {selected_year}")
+
+    if not rides:
+        st.info(f"No rides found for {selected_month_name} {selected_year}.")
+        return
+
+    df = pd.DataFrame(rides)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df["month"] = df["date"].dt.strftime("%B")
+    df["year"] = df["date"].dt.year
+    df["date_display"] = df["date"].dt.strftime("%d-%B-%Y")
+
+    filtered_df = df[df["year"] == selected_year]
 
     if filtered_df.empty:
-        st.info("No rides found for the selected filters.")
-    else:
-        for idx, (_, ride) in enumerate(filtered_df.iterrows(), start=1):
-            with st.expander(
-                    f"{ride['date'].strftime('%d-%b-%Y')} @ {ride['time']} | PKR{ride['amount']} | {ride['month']} {ride['year']}"):
-                if st.button("🗑 Delete Ride", key=f"delete_{ride['id']}"):
-                    if notion_service.delete_ride(ride["id"]):
-                        st.success(f"Deleted ride from {ride['date'].strftime('%d-%b-%Y')} @ {ride['time']}")
-                        time.sleep(1)
-                        st.rerun()
+        st.info(f"No rides found for {selected_month_name} {selected_year}.")
+        return
+
+    for _, ride in filtered_df.iterrows():
+        with st.expander(
+                f"{ride['date'].strftime('%d-%b-%Y')} @ {ride['time']} | PKR {ride['amount']} | {ride['month']} {ride['year']}"):
+            if st.button("🗑 Delete Ride", key=f"delete_{ride['id']}"):
+                if notion_service.delete_ride(ride["id"]):
+                    st.success(f"Deleted ride from {ride['date'].strftime('%d-%b-%Y')} @ {ride['time']}")
+                    time.sleep(1)
+                    st.rerun()
 
 
 def render_view_rides_tab(notion_service):
@@ -333,34 +408,30 @@ def render_view_rides_tab(notion_service):
         st.cache_data.clear()
         st.rerun()
 
-    rides = notion_service.get_rides()
+    view = st.radio("Select View", ["📅 By Month", "📋 All Data", "📊 Summary", "❌ Delete"], horizontal=True)
 
-    if rides:
-        df = pd.DataFrame(rides)
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
-        df["month"] = df["date"].dt.strftime("%B")
-        df["year"] = df["date"].dt.year
-        df = df.sort_values(by="date", ascending=True)
-        df["date_display"] = df["date"].dt.strftime("%d-%B-%Y")
-        df.index = range(1, len(df) + 1)
-
-        unique_months = sorted(df["month"].dropna().unique())
-        pkt = pytz.timezone("Asia/Karachi")
-        current_month = datetime.now(pkt).strftime("%B")
-        current_year = datetime.now(pkt).year
-
-        view = st.radio("Select View", ["📅 By Month", "📋 All Data", "📊 Summary", "❌ Delete"], horizontal=True)
-
-        if view == "📋 All Data":
-            render_all_data(df)
-        elif view == "📅 By Month":
-            render_by_month(df, unique_months, current_month, current_year)
-        elif view == "📊 Summary":
-            render_summary(df)
-        elif view == "❌ Delete":
-            render_delete(df, unique_months, current_month, current_year, notion_service)
+    if view == "📅 By Month":
+        render_by_month(notion_service)
+    elif view == "❌ Delete":
+        render_delete(notion_service)
     else:
-        st.info("❌ No rides recorded yet.")
+        rides = notion_service.get_rides()
+
+        if rides:
+            df = pd.DataFrame(rides)
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            df["month"] = df["date"].dt.strftime("%B")
+            df["year"] = df["date"].dt.year
+            df = df.sort_values(by="date", ascending=True)
+            df["date_display"] = df["date"].dt.strftime("%d-%B-%Y")
+            df.index = range(1, len(df) + 1)
+
+            if view == "📋 All Data":
+                render_all_data(df)
+            elif view == "📊 Summary":
+                render_summary(df)
+        else:
+            st.info("❌ No rides recorded yet.")
 
 
 def render_search_filter_tab(notion_service):
@@ -441,7 +512,6 @@ def main():
     setup_page()
 
     auth = CookieAuth()
-
 
     if not auth.is_authenticated():
         with st.spinner("🔄 Initializing secure session..."):

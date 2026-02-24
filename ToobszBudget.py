@@ -80,7 +80,6 @@ class CookieAuth:
             token = cookies[self.cookie_name]
 
             if self.verify_token(token):
-                # Valid cookie found - auto login
                 st.session_state.authentication_status = True
                 st.session_state.username = self.username
                 st.session_state.name = self.user_name
@@ -115,9 +114,7 @@ def login_page(auth):
         submit = st.form_submit_button("Login")
 
         if submit:
-            # Check credentials
-            if (username == auth.username and auth.verify_password(password)):
-                # Set cookie for future visits
+            if username == auth.username and auth.verify_password(password):
                 auth.set_auth_cookie()
                 st.success("✅ Login successful!")
                 time.sleep(0.5)
@@ -133,6 +130,11 @@ EXPENSE_CATEGORIES = [
 
 INCOME_CATEGORIES = [
     "Salary", "Freelance", "Bonus", "Investment", "Gift", "Other"
+]
+
+MONTHS = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
 ]
 
 
@@ -156,21 +158,33 @@ class NotionService:
             return None
 
     @st.cache_data(ttl=300)
-    def get_transactions(_self):
-        """Fetch all transactions from Notion"""
+    def get_transactions(_self, month=None):
+        """
+        Fetch transactions from Notion with optional month filter.
+
+        Args:
+            month: Filter by month string (e.g., "January 2026"). If None, fetches all transactions.
+        """
         transactions = []
         has_more = True
         start_cursor = None
 
         try:
             while has_more:
+                query_params = {"data_source_id": _self.datasource_id}
+
+                if month:
+                    query_params["filter"] = {
+                        "property": "Month",
+                        "rich_text": {
+                            "equals": month
+                        }
+                    }
+
                 if start_cursor:
-                    data = _self.client.data_sources.query(
-                        data_source_id=_self.datasource_id,
-                        start_cursor=start_cursor
-                    )
-                else:
-                    data = _self.client.data_sources.query(data_source_id=_self.datasource_id)
+                    query_params["start_cursor"] = start_cursor
+
+                data = _self.client.data_sources.query(**query_params)
 
                 for row in data["results"]:
                     props = row["properties"]
@@ -185,8 +199,8 @@ class NotionService:
                         "amount": props["Amount"]["number"] if props["Amount"]["number"] else 0,
                         "month": props["Month"]["rich_text"][0]["text"]["content"] if props["Month"][
                             "rich_text"] else "Unknown",
-                        "description": props["Description"]["rich_text"][0]["text"]["content"] if props["Description"][
-                            "rich_text"] else ""
+                        "description": props["Description"]["rich_text"][0]["text"]["content"] if
+                        props["Description"]["rich_text"] else ""
                     })
 
                 has_more = data.get("has_more", False)
@@ -332,20 +346,42 @@ def render_dashboard(df):
         st.info("No income recorded yet.")
 
 
-def render_by_month(df):
-    """Render by month view"""
+def render_by_month(notion_service):
+    """Render by month view with separate Month and Year selectors, fetching filtered data from Notion"""
     st.subheader("Filter by Month")
 
     pkt = pytz.timezone("Asia/Karachi")
-    unique_months = sorted(df["month"].unique())
-    months = ["All"] + list(unique_months)
-    current_month = datetime.now(pkt).strftime("%B %Y")
-    default_index = unique_months.index(current_month) + 1 if current_month in unique_months else 0
+    now_pkt = datetime.now(pkt)
 
-    selected_month = st.selectbox("Choose a month", months, index=default_index)
-    filtered_df = df if selected_month == "All" else df[df["month"] == selected_month]
+    current_year = now_pkt.year
+    years = list(range(2025, current_year + 1))
 
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_month_name = st.selectbox(
+            "Month",
+            MONTHS,
+            index=now_pkt.month - 1
+        )
+    with col2:
+        selected_year = st.selectbox(
+            "Year",
+            years,
+            index=years.index(current_year)
+        )
+
+    month_str = f"{selected_month_name} {selected_year}"
+
+    with st.spinner(f"Loading transactions for {month_str}..."):
+        transactions = notion_service.get_transactions(month=month_str)
+
+    if not transactions:
+        st.info(f"No transactions found for {month_str}.")
+        return
+
+    filtered_df = pd.DataFrame(transactions)
     filtered_df.index = range(1, len(filtered_df) + 1)
+
     df_show = filtered_df.copy()
     df_show["amount"] = df_show["amount"].map("PKR {:,.2f}".format)
     st.write(df_show.drop(columns=["id"]))
@@ -481,27 +517,28 @@ def render_budget_overview_tab(notion_service):
         st.cache_data.clear()
         st.rerun()
 
-    transactions = notion_service.get_transactions()
+    view = st.radio("Select View", ["📅 By Month", "📊 Dashboard", "📋 All Data", "📈 By Category", "❌ Delete"],
+                    horizontal=True)
 
-    if transactions:
-        df = pd.DataFrame(transactions)
-        df.index = range(1, len(transactions) + 1)
-
-        view = st.radio("Select View", ["📅 By Month", "📊 Dashboard", "📋 All Data", "📈 By Category", "❌ Delete"],
-                        horizontal=True)
-
-        if view == "📊 Dashboard":
-            render_dashboard(df)
-        elif view == "📅 By Month":
-            render_by_month(df)
-        elif view == "📋 All Data":
-            render_all_data(df)
-        elif view == "📈 By Category":
-            render_by_category(df)
-        elif view == "❌ Delete":
-            render_delete(transactions, notion_service)
+    if view == "📅 By Month":
+        render_by_month(notion_service)
     else:
-        st.info("❌ No transactions recorded yet.")
+        transactions = notion_service.get_transactions()
+
+        if transactions:
+            df = pd.DataFrame(transactions)
+            df.index = range(1, len(transactions) + 1)
+
+            if view == "📊 Dashboard":
+                render_dashboard(df)
+            elif view == "📋 All Data":
+                render_all_data(df)
+            elif view == "📈 By Category":
+                render_by_category(df)
+            elif view == "❌ Delete":
+                render_delete(transactions, notion_service)
+        else:
+            st.info("❌ No transactions recorded yet.")
 
 
 def render_search_filter_tab(notion_service):
@@ -548,7 +585,6 @@ def render_search_filter_tab(notion_service):
             categories = ["All"] + sorted(df["category"].unique().tolist())
             selected_category = st.selectbox("Select Category", categories)
 
-        # Apply filters
         filtered_df = df.copy()
         if use_date_range:
             filtered_df = filtered_df[
