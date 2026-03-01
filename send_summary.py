@@ -68,7 +68,7 @@ def get_previous_month_summary(rides):
     prev_month_name = calendar.month_name[prev_month]
     prev_month_year = f"{prev_month_name} {prev_year}"
 
-    month_rides = [r for r in rides if r["month"] == prev_month_name]
+    month_rides = [r for r in rides if r["month"] == prev_month_year]
 
     if not month_rides:
         return None
