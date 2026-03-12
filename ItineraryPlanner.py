@@ -187,7 +187,6 @@ def build_itinerary_text(meta: dict, events: list) -> str:
     if events:
         lines.append("🗓️  SCHEDULE")
         lines.append("─" * 40)
-        # ── Display in order added (no sorting) ──
         for e in events:
             emoji = e.get("emoji", "•")
             t = e.get("time", "")
@@ -344,7 +343,7 @@ with st.sidebar:
 
     col_add, col_paste = st.columns(2)
     with col_add:
-        if st.button("➕ Add one", use_container_width=True):
+        if st.button("➕ Add one", width="stretch"):
             cleaned = new_email.strip().lower()
             if not cleaned:
                 st.warning("Type an email first.")
@@ -357,7 +356,7 @@ with st.sidebar:
                 st.rerun()
 
     with col_paste:
-        if st.button("📋 Paste many", use_container_width=True,
+        if st.button("📋 Paste many", width="stretch",
                      help="Paste comma- or newline-separated emails above, then click here"):
             raw = new_email.strip()
             added, dupes, bad = [], [], []
@@ -394,7 +393,7 @@ with st.sidebar:
                     st.rerun()
 
         st.markdown("")
-        if st.button("🗑️ Clear all recipients", use_container_width=True):
+        if st.button("🗑️ Clear all recipients", width="stretch"):
             st.session_state.recipients = []
             st.rerun()
     else:
@@ -406,7 +405,7 @@ with st.sidebar:
         for e in st.session_state.events:
             st.markdown(f"**{e.get('emoji', '•')} {e.get('time', '')}** – {e.get('name', '')}")
         st.markdown(f"**Total:** {len(st.session_state.events)} event(s)")
-        if st.button("🗑️ Clear All Events", use_container_width=True):
+        if st.button("🗑️ Clear All Events", width="stretch"):
             st.session_state.events = []
             st.rerun()
     else:
@@ -462,7 +461,7 @@ with tab2:
             duration_options = ["", "15 min", "30 min", "45 min", "1 hr", "1.5 hr", "2 hr", "2.5 hr", "3 hr", "All day"]
             item_duration = st.selectbox("Duration", duration_options, key="item_duration")
 
-        submitted = st.form_submit_button("➕ Add to Schedule", use_container_width=True, type="primary")
+        submitted = st.form_submit_button("➕ Add to Schedule", width="stretch", type="primary")
         if submitted:
             if not item_name.strip():
                 st.error("Please enter an activity name.")
@@ -534,7 +533,7 @@ with tab3:
     email_subject = st.text_input("Email Subject", value=subject_default, key="email_subject")
 
     send_btn = st.button("🚀 Send Email Now", type="primary",
-                         use_container_width=True, disabled=(len(recipients) == 0))
+                         width="stretch", disabled=(len(recipients) == 0))
 
     if send_btn:
         s_email = st.secrets.get("SENDER_EMAIL")
