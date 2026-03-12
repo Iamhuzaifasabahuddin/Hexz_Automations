@@ -269,7 +269,24 @@ def build_html_email(meta: dict, events: list) -> str:
       <p style='margin:0 0 6px;font-family:"Plus Jakarta Sans",Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:{occ_color};'>📝 Notes</p>
       <p style='margin:0;font-family:"Plus Jakarta Sans",Arial,sans-serif;font-size:14px;color:#444;line-height:1.75;'>{note}</p>
     </div>""" if note else ""
+    cal_links = build_calendar_links(meta)
 
+    calendar_section = f"""
+        <div style='margin-top:28px;background:#f8f9ff;border-radius:14px;padding:22px 24px;text-align:center;border:1.5px solid #e0e4ff;'>
+          <p style='margin:0 0 4px;font-family:"Plus Jakarta Sans",Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#888;'>📅 Add to Your Calendar</p>
+          <p style='margin:0 0 16px;font-family:"Plus Jakarta Sans",Arial,sans-serif;font-size:13px;color:#aaa;'>Tap a button below — works on all devices</p>
+          <div>
+            <a href='{cal_links["google"]}' target='_blank' style='display:inline-block;margin:4px 6px;padding:11px 22px;background:#4285F4;color:#fff;border-radius:10px;font-family:"Plus Jakarta Sans",Arial,sans-serif;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.02em;'>
+              📅 Google Calendar
+            </a>
+            <a href='{cal_links["outlook"]}' target='_blank' style='display:inline-block;margin:4px 6px;padding:11px 22px;background:#0078D4;color:#fff;border-radius:10px;font-family:"Plus Jakarta Sans",Arial,sans-serif;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.02em;'>
+              📆 Outlook
+            </a>
+            <a href='{cal_links["ics"]}' download='event.ics' style='display:inline-block;margin:4px 6px;padding:11px 22px;background:#4285F4;color:#fff;border-radius:10px;font-family:"Plus Jakarta Sans",Arial,sans-serif;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.02em;'>
+              🍎 Apple / iCal (.ics)
+            </a>
+          </div>
+        </div>"""
     occ_emoji = occ.split()[0]
     occ_label = " ".join(occ.split()[1:])
 
@@ -307,6 +324,7 @@ def build_html_email(meta: dict, events: list) -> str:
     </table>
 
     {note_section}
+    {calendar_section}
 </div>
     <div style='text-align:center;padding:20px;'>
       <p style='margin:0;font-family:"Plus Jakarta Sans",Arial,sans-serif;font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#bbb;'>✨ Created with Hexz Itinerary Planner &nbsp;·&nbsp; {pkt_stamp}</p>
@@ -315,6 +333,70 @@ def build_html_email(meta: dict, events: list) -> str:
 </body>
 </html>"""
 
+import urllib.parse
+
+def build_calendar_links(meta: dict) -> dict:
+    """Generate Google Calendar and ICS data for the event."""
+    title = meta.get("title", "Event")
+    location = meta.get("location", "")
+    note = meta.get("note", "")
+    ev_date_str = meta.get("date", "")  # "01-January-2025"
+
+    # Parse date
+    try:
+        ev_date = datetime.strptime(ev_date_str, "%d-%B-%Y")
+    except ValueError:
+        ev_date = datetime.now(PKT)
+
+    date_str = ev_date.strftime("%Y%m%d")
+    next_day = (ev_date + timedelta(days=1)).strftime("%Y%m%d")
+
+    gc_params = {
+        "action": "TEMPLATE",
+        "text": title,
+        "dates": f"{date_str}/{next_day}",
+        "location": location,
+        "details": note,
+    }
+    google_url = "https://calendar.google.com/calendar/render?" + urllib.parse.urlencode(gc_params)
+
+    outlook_params = {
+        "path": "/calendar/action/compose",
+        "rru": "addevent",
+        "subject": title,
+        "startdt": ev_date.strftime("%Y-%m-%d"),
+        "enddt": (ev_date + timedelta(days=1)).strftime("%Y-%m-%d"),
+        "location": location,
+        "body": note,
+    }
+    outlook_url = "https://outlook.live.com/calendar/0/deeplink/compose?" + urllib.parse.urlencode(outlook_params)
+
+    uid = f"{date_str}-{title.replace(' ', '')}@itineraryplanner"
+    ics_lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Itinerary Planner//EN",
+        "BEGIN:VEVENT",
+        f"UID:{uid}",
+        f"DTSTART;VALUE=DATE:{date_str}",
+        f"DTEND;VALUE=DATE:{next_day}",
+        f"SUMMARY:{title}",
+        f"LOCATION:{location}",
+        f"DESCRIPTION:{note.replace(chr(10), '\\n')}",
+        "END:VEVENT",
+        "END:VCALENDAR",
+    ]
+    ics_content = "\r\n".join(ics_lines)
+
+    import base64
+    ics_b64 = base64.b64encode(ics_content.encode()).decode()
+    ics_data_uri = f"data:text/calendar;base64,{ics_b64}"
+
+    return {
+        "google": google_url,
+        "outlook": outlook_url,
+        "ics": ics_data_uri,
+    }
 
 def send_email(sender_email, sender_password, recipients: list, subject, plain_text, html_body):
     """Send individual emails to every recipient in the list."""
