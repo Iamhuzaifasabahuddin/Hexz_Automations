@@ -4,7 +4,6 @@ import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, date, time, timedelta
-import json
 
 try:
     from zoneinfo import ZoneInfo
@@ -111,7 +110,6 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Muslim-friendly occasions ──────────────────────────────────────────────
 OCCASIONS = {
     "🎂 Birthday Party":          {"color": "#ff6b9d", "template": "birthday"},
     "💍 Nikah / Walima":          {"color": "#f59e0b", "template": "wedding"},
@@ -127,7 +125,6 @@ OCCASIONS = {
     "🎉 Custom Event":            {"color": "#8b5cf6", "template": "custom"},
 }
 
-# ── Muslim-friendly emojis ─────────────────────────────────────────────────
 EMOJIS = {
     "🌙 Crescent":      "🌙",
     "⭐ Star":           "⭐",
@@ -237,7 +234,6 @@ def build_html_email(meta: dict, events: list) -> str:
     dark_color = darken(occ_color)
 
     event_rows = ""
-    # ── Display in order added (no sorting) ──
     for e in events:
         emoji = e.get("emoji", "•")
         t = e.get("time", "")
@@ -407,7 +403,6 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📋 Event Summary")
     if st.session_state.events:
-        # ── Display in order added (no sorting) ──
         for e in st.session_state.events:
             st.markdown(f"**{e.get('emoji', '•')} {e.get('time', '')}** – {e.get('name', '')}")
         st.markdown(f"**Total:** {len(st.session_state.events)} event(s)")
@@ -485,7 +480,6 @@ with tab2:
     if st.session_state.events:
         st.markdown("---")
         st.subheader("📋 Current Schedule")
-        # ── Display in order added (no sorting) ──
         for i, e in enumerate(st.session_state.events):
             col_l, col_r = st.columns([5, 1])
             with col_l:
