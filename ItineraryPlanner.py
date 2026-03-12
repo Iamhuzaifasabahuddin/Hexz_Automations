@@ -111,27 +111,49 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 </style>
 """, unsafe_allow_html=True)
 
+# ── Muslim-friendly occasions ──────────────────────────────────────────────
 OCCASIONS = {
-    "🎂 Birthday Party": {"color": "#ff6b9d", "template": "birthday"},
-    "💍 Wedding / Engagement": {"color": "#f59e0b", "template": "wedding"},
-    "🎓 Graduation": {"color": "#6366f1", "template": "graduation"},
-    "🏖️ Vacation / Holiday": {"color": "#06b6d4", "template": "vacation"},
-    "🍽️ Dinner Party": {"color": "#ef4444", "template": "dinner"},
-    "🏢 Corporate Event": {"color": "#374151", "template": "corporate"},
-    "👶 Baby Shower": {"color": "#f9a8d4", "template": "baby"},
-    "🎃 Halloween Party": {"color": "#f97316", "template": "halloween"},
-    "🎄 Holiday Gathering": {"color": "#16a34a", "template": "holiday"},
-    "🎉 Custom Event": {"color": "#8b5cf6", "template": "custom"},
+    "🎂 Birthday Party":          {"color": "#ff6b9d", "template": "birthday"},
+    "💍 Nikah / Walima":          {"color": "#f59e0b", "template": "wedding"},
+    "🎓 Graduation":              {"color": "#6366f1", "template": "graduation"},
+    "🌙 Eid Celebration":         {"color": "#06b6d4", "template": "eid"},
+    "🕌 Ramadan Gathering":       {"color": "#0ea5e9", "template": "ramadan"},
+    "🍽️ Iftar / Dinner Party":   {"color": "#ef4444", "template": "dinner"},
+    "👶 Aqiqah / Baby Shower":    {"color": "#f9a8d4", "template": "baby"},
+    "🏢 Corporate Event":         {"color": "#374151", "template": "corporate"},
+    "🏖️ Vacation / Holiday":     {"color": "#10b981", "template": "vacation"},
+    "📿 Quran Khatam / Dua":      {"color": "#7c3aed", "template": "quran"},
+    "🤲 Milad / Religious Event": {"color": "#d97706", "template": "milad"},
+    "🎉 Custom Event":            {"color": "#8b5cf6", "template": "custom"},
 }
 
+# ── Muslim-friendly emojis ─────────────────────────────────────────────────
 EMOJIS = {
-    "🎉 Celebration": "🎉", "🍽️ Dining": "🍽️", "🎵 Music": "🎵",
-    "🥂 Drinks": "🥂", "🏃 Activity": "🏃", "📸 Photos": "📸",
-    "🎮 Games": "🎮", "🚗 Travel": "🚗", "🛍️ Shopping": "🛍️",
-    "🌿 Nature": "🌿", "💃 Dancing": "💃", "🎬 Entertainment": "🎬",
-    "🧘 Wellness": "🧘", "🏊 Swimming": "🏊", "🎨 Creative": "🎨",
-    "⭐ Special": "⭐", "🔥 Hot": "🔥", "✨ Magic": "✨",
-    "💫 Sparkle": "💫", "🌟 Star": "🌟",
+    "🌙 Crescent":      "🌙",
+    "⭐ Star":           "⭐",
+    "🤲 Dua / Prayer":  "🤲",
+    "🕌 Mosque":        "🕌",
+    "📿 Tasbih":        "📿",
+    "🍽️ Dining":       "🍽️",
+    "🎵 Nasheed":       "🎵",
+    "🥤 Drinks":        "🥤",
+    "🏃 Activity":      "🏃",
+    "📸 Photos":        "📸",
+    "🎮 Games":         "🎮",
+    "🚗 Travel":        "🚗",
+    "🛍️ Shopping":     "🛍️",
+    "🌿 Nature":        "🌿",
+    "🎬 Entertainment": "🎬",
+    "🧘 Wellness":      "🧘",
+    "🏊 Swimming":      "🏊",
+    "🎨 Creative":      "🎨",
+    "🔥 Hot":           "🔥",
+    "✨ Magic":          "✨",
+    "💫 Sparkle":       "💫",
+    "🌟 Star":          "🌟",
+    "🎁 Gift":          "🎁",
+    "🎉 Celebration":   "🎉",
+    "🌸 Flowers":       "🌸",
 }
 
 if "events" not in st.session_state:
@@ -168,7 +190,8 @@ def build_itinerary_text(meta: dict, events: list) -> str:
     if events:
         lines.append("🗓️  SCHEDULE")
         lines.append("─" * 40)
-        for e in sorted(events, key=lambda x: x.get("time", "00:00")):
+        # ── Display in order added (no sorting) ──
+        for e in events:
             emoji = e.get("emoji", "•")
             t = e.get("time", "")
             name = e.get("name", "")
@@ -214,7 +237,8 @@ def build_html_email(meta: dict, events: list) -> str:
     dark_color = darken(occ_color)
 
     event_rows = ""
-    for e in sorted(events, key=lambda x: x.get("time", "00:00")):
+    # ── Display in order added (no sorting) ──
+    for e in events:
         emoji = e.get("emoji", "•")
         t = e.get("time", "")
         name = e.get("name", "")
@@ -383,7 +407,8 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📋 Event Summary")
     if st.session_state.events:
-        for e in sorted(st.session_state.events, key=lambda x: x.get("time", "00:00")):
+        # ── Display in order added (no sorting) ──
+        for e in st.session_state.events:
             st.markdown(f"**{e.get('emoji', '•')} {e.get('time', '')}** – {e.get('name', '')}")
         st.markdown(f"**Total:** {len(st.session_state.events)} event(s)")
         if st.button("🗑️ Clear All Events", use_container_width=True):
@@ -413,13 +438,18 @@ with tab1:
         event_location = st.text_input("Venue / Location", placeholder="The Grand Ballroom, NYC", key="event_location")
         dress_code = st.selectbox("Dress Code",
                                   ["Not specified", "Casual 👕", "Smart Casual 👔", "Formal 🤵", "Black Tie 🎩",
-                                   "Costume 🎭", "Beach / Tropical 🌴"], key="dress_code")
+                                   "Traditional / Desi 👘", "Modest Dress 🧕", "Costume 🎭", "Beach / Tropical 🌴"],
+                                  key="dress_code")
 
     additional_notes = st.text_area("Additional Notes / RSVP Info", placeholder="RSVP by Jan 15 | Contact: 555-1234",
                                     height=100, key="additional_notes")
     st.subheader("🏷️ Event Tags / Vibe")
-    tag_options = ["🎊 Fun", "💖 Romantic", "👨‍👩‍👧 Family", "🍸 Classy", "🌈 Colourful", "🔇 Intimate", "🎭 Themed",
-                   "🌍 Outdoor", "🏠 Indoor", "🌙 Evening", "☀️ Daytime", "🎁 Gifts Welcome"]
+    tag_options = [
+        "🎊 Fun", "💖 Warm & Welcoming", "👨‍👩‍👧 Family", "🍸 Classy",
+        "🌈 Colourful", "🔇 Intimate", "🎭 Themed", "🌍 Outdoor",
+        "🏠 Indoor", "🌙 Evening", "☀️ Daytime", "🎁 Gifts Welcome",
+        "🤲 Barakah & Blessings", "🕌 Islamic Theme",
+    ]
     selected_tags = st.multiselect("Select tags (optional)", tag_options, key="selected_tags")
 
 with tab2:
@@ -430,8 +460,8 @@ with tab2:
             emoji_label = st.selectbox("Emoji", list(EMOJIS.keys()), key="emoji_select")
             item_time = st.time_input("Time", value=time(12, 0), key="item_time")
         with col2:
-            item_name = st.text_input("Activity / Item Name *", placeholder="e.g. Welcome Drinks", key="item_name")
-            item_detail = st.text_input("Details / Notes", placeholder="Champagne & canapés in the foyer",
+            item_name = st.text_input("Activity / Item Name *", placeholder="e.g. Welcome Guests", key="item_name")
+            item_detail = st.text_input("Details / Notes", placeholder="Dates & juice served at entrance",
                                         key="item_detail")
         with col3:
             duration_options = ["", "15 min", "30 min", "45 min", "1 hr", "1.5 hr", "2 hr", "2.5 hr", "3 hr", "All day"]
@@ -455,7 +485,8 @@ with tab2:
     if st.session_state.events:
         st.markdown("---")
         st.subheader("📋 Current Schedule")
-        for i, e in enumerate(sorted(st.session_state.events, key=lambda x: x.get("time", "00:00"))):
+        # ── Display in order added (no sorting) ──
+        for i, e in enumerate(st.session_state.events):
             col_l, col_r = st.columns([5, 1])
             with col_l:
                 st.markdown(f"""
@@ -465,8 +496,7 @@ with tab2:
                 </div>""", unsafe_allow_html=True)
             with col_r:
                 if st.button("🗑️", key=f"del_{i}", help="Remove this event"):
-                    original_idx = next(j for j, ev in enumerate(st.session_state.events) if ev == e)
-                    st.session_state.events.pop(original_idx)
+                    st.session_state.events.pop(i)
                     st.rerun()
     else:
         st.info("No schedule items yet. Add some above! 👆")
@@ -536,4 +566,3 @@ with tab3:
     if st.session_state.email_sent:
         st.balloons()
         st.session_state.email_sent = False
-
