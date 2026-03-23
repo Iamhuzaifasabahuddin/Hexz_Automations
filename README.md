@@ -1,77 +1,120 @@
-# 💰🚕 Hexz Finance Suite  
-**Personal Budget Tracker & Ride Expense Tracker (Streamlit + Notion)**
+# 💰✨ Hexz Finance & Events Suite
 
-Hexz Finance Suite is a unified personal finance system built with **Streamlit** and **Notion**.  
-It consists of two tightly related apps:
+**Personal Budget Tracker • Ride Expense Tracker • Investment Calculator • Itinerary Planner**
 
-1. **Hexz Personal Budget Tracker** – track income, expenses, savings, and financial health  
-2. **Hexz Ride Tracker** – track ride/taxi expenses with monthly and yearly insights  
-
-Both apps share the same design philosophy, authentication system, and Notion-backed storage.
+Hexz Finance & Event Suite is a unified personal finance and planning system built with **Streamlit** and **Notion**. It combines financial tracking, analytics, and event planning into a single, cohesive ecosystem.
 
 ---
 
-## 🚀 Core Features (Combined)
+## 🚀 Overview
 
-### 🔐 Authentication
-- Secure login using **streamlit-authenticator**
-- Cookie-based sessions
-- Secrets-managed credentials
+The suite consists of four integrated applications:
 
-### ☁️ Notion as Backend
-- All data stored in Notion databases
-- Soft delete via page archiving
-- Paginated querying with caching
+1. **Hexz Personal Budget Tracker**
+2. **Hexz Ride Expense Tracker**
+3. **Investment Calculator**
+4. **Itinerary Planner**
+
+All apps follow a consistent design philosophy, share authentication, and use **Notion as a backend database**.
 
 ---
 
-## 💸 Hexz Personal Budget Tracker
+## 🔐 Core Architecture
+
+### Authentication
+
+* Secure login via **custom authenticator**
+* Cookie-based session management
+* Credentials managed via secrets
+
+### Backend (Notion)
+
+* Structured data storage using Notion databases
+* Soft deletion via page archiving
+* Efficient pagination with caching
+
+---
+
+## 💸 Personal Budget Tracker
+
+### Key Capabilities
+
+* Track **income and expenses**
+* Category-based financial organization
+* Real-time **savings and net balance calculation**
+
+### Analytics Dashboard
+
+* Income vs Expense comparison
+* Category-level breakdowns
+* Monthly & yearly summaries
+
+### Filtering & Search
+
+* Date range filtering
+* Amount-based filtering
+* Category & transaction type filters
+
+### Data Safety
+
+* Soft delete (archival)
+* Timezone-aware (Asia/Karachi)
+
+---
+
+## 🚕 Ride Expense Tracker
 
 ### Features
-- Add **Income & Expenses**
-- Category-based tracking
-- Savings calculation
-- Monthly & yearly summaries
-- Interactive dashboard:
-  - Income vs Expenses
-  - Category breakdowns
-  - Net balance
-- Advanced search & filters:
-  - Date range
-  - Amount range
-  - Category & type
-- Safe delete (archive) for transactions
-- Timezone-aware (Asia/Karachi)
+
+* Log rides with **date, time, and amount**
+* Monthly and yearly summaries
+* Quick daily entry optimization
+
+### Insights
+
+* Total ride spend
+* Average cost per ride
+* Spending trends over time
+
+### Filtering
+
+* Date range
+* Amount range
+
+### Data Handling
+
+* Safe deletion by month/year (archival)
 
 ---
 
-## 🚕 Hexz Ride Tracker
+## 📅 Itinerary Planner
 
-### Features
-- Log ride expenses with date, time, and amount
-- Monthly & yearly views
-- Ride summaries:
-  - Total spend
-  - Average per ride
-- Visual analytics:
-  - Spending over time
-  - Monthly totals
-- Search & filter:
-  - Date range
-  - Amount range
-- Safe deletion by month/year
-- Optimized for daily quick entry
+* Create event or occasion-based itineraries
+* Send full itinerary via email
+* Calendar integration support
+* Multiple theme options for customization
+
+---
+
+## 📈 Investment Calculator
+
+* ROI calculation based on principal and interest rate
+* SIP growth visualization over time
+* Multi-year return projections
+* Graphical representation of investment growth
 
 ---
 
 ## 🛠 Tech Stack
 
-- **Python 3.13+**
-- **Streamlit**
-- **Pandas**
-- **Notion API**
-- **streamlit-authenticator**
-- **pytz**
+| Layer         | Technology              |
+| ------------- | ----------------------- |
+| Language      | Python 3.13+            |
+| Frontend      | Streamlit               |
+| Data          | Pandas                  |
+| Backend       | Notion API              |
+| Auth          | custom authenticator    |
+| Time Handling | pytz                    |
 
 ---
 
@@ -79,26 +122,28 @@ Both apps share the same design philosophy, authentication system, and Notion-ba
 
 ```text
 .
-├── budget_app.py          # Personal Budget Tracker
-├── ride_app.py            # Ride Expense Tracker
+├── BudgetHexz.py 
+├── HexzRideLog.py
+├── InvestmentCalculator.py 
+├── ItinearyPlanner.py        
 ├── requirements.txt
 ├── .streamlit/
-│   └── secrets.toml       # Environment secrets
+│   └── secrets.toml
 └── README.md
-````
+```
 
 ---
 
 ## 📦 Installation
 
-### 1️⃣ Clone Repository
+### 1. Clone Repository
 
 ```bash
 git clone https://github.com/Iamhuzaifasabahuddin/Hexz_Automations.git
 cd Hexz_Automations
 ```
 
-### 2️⃣ Create Virtual Environment (Recommended)
+### 2. Create Virtual Environment
 
 ```bash
 python -m venv venv
@@ -106,7 +151,7 @@ source venv/bin/activate        # macOS / Linux
 venv\Scripts\activate           # Windows
 ```
 
-### 3️⃣ Install Dependencies
+### 3. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -135,29 +180,24 @@ cookie_name = "hexz_cookie"
 cookie_expiry_days = 30
 ```
 
-> ⚠️ Never commit `secrets.toml`
+⚠️ **Important:** Never commit `secrets.toml` to version control.
 
 ---
 
-## ▶️ Running the Apps
+## ▶️ Running the Applications
+
+```bash
+streamlit run BudgetHexz.py
+streamlit run HexzRideLog.py
+streamlit run InvestmentCalculator.py
+streamlit run ItinearyPlanner.py
+```
+
+---
+
+## 🧾 Notion Database Schema
 
 ### Budget Tracker
-
-```bash
-streamlit run budget_app.py
-```
-
-### Ride Tracker
-
-```bash
-streamlit run ride_app.py
-```
-
----
-
-## 🧾 Notion Database Requirements
-
-### Budget Tracker Database
 
 | Property    | Type                      |
 | ----------- | ------------------------- |
@@ -170,7 +210,7 @@ streamlit run ride_app.py
 | Month       | Rich Text                 |
 | Description | Rich Text                 |
 
-### Ride Tracker Database
+### Ride Tracker
 
 | Property | Type      |
 | -------- | --------- |
@@ -182,43 +222,37 @@ streamlit run ride_app.py
 
 ---
 
-## ⚡ Performance & Caching
+## ⚡ Performance Optimization
 
 * `@st.cache_resource` → Notion client
-* `@st.cache_data (TTL=300s)` → Transactions & rides
-* Manual refresh buttons included
+* `@st.cache_data (TTL=300s)` → Data caching
+* Manual refresh controls included
 
 ---
 
 ## 🔒 Data Safety
 
-* Deletes are **archival**, not permanent
-* No data loss unless removed directly in Notion
-* Secrets fully isolated from source code
+* All deletions are **non-destructive (archived)**
+* No permanent data loss unless manually removed in Notion
+* Secrets are fully isolated from source code
 
 ---
 
-## 🧠 Future Enhancements
+## 🧠 Roadmap
 
 * 📤 CSV / Excel export
-* 📱 Mobile-first UI
-* 🔔 Monthly budget alerts
-* 📈 Forecasting & trends
-* 👥 Multi-user support
-* 🧮 Ride cost analytics vs income
+* 📈 Financial forecasting & predictive analytics
+* 👥 Multi-user collaboration
+* 🧮 Ride expense vs income correlation insights
 
 ---
 
 ## 📜 License
 
-MIT License — free to use, modify, and distribute.
+Private Software License Agreement
 
 ---
 
-## 🙌 Author
+## 👤 Author
 
 **Hexz**
-Streamlit • Notion • Personal Finance Automation
-
----
-
