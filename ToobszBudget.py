@@ -132,6 +132,11 @@ INCOME_CATEGORIES = [
     "Salary", "Freelance", "Bonus", "Investment", "Gift", "Other"
 ]
 
+SAVINGS_DEBIT_CATEGORIES = [
+    "Shopping", "Food & Dining", "Transportation", "Entertainment",
+    "Healthcare", "Education", "Travel", "Electronics", "Clothing", "Other"
+]
+
 MONTHS = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
@@ -256,8 +261,15 @@ def render_add_transaction_tab(notion_service):
     pkt = pytz.timezone("Asia/Karachi")
     now_pkt = datetime.now(pkt)
 
-    transaction_type = st.selectbox("Type", ["Expense", "Income"])
-    category = st.selectbox("Category", EXPENSE_CATEGORIES if transaction_type == "Expense" else INCOME_CATEGORIES)
+    transaction_type = st.selectbox("Type", ["Expense", "Income", "Savings Debit"])
+    if transaction_type == "Expense":
+        category = st.selectbox("Category", EXPENSE_CATEGORIES)
+    elif transaction_type == "Income":
+        category = st.selectbox("Category", INCOME_CATEGORIES)
+    else:
+        transaction_type = "Savings Debit"
+        st.info("💡 This will be deducted from your Savings balance.")
+        category = st.selectbox("Spending Category", SAVINGS_DEBIT_CATEGORIES)
 
     with st.form("transaction_form", clear_on_submit=False):
         transaction_date = st.date_input("Date", now_pkt.date())
@@ -272,7 +284,7 @@ def render_add_transaction_tab(notion_service):
         transaction_dt = datetime.combine(transaction_date, transaction_time)
         transaction_dt_pkt = pkt.localize(transaction_dt)
         formatted_dt = transaction_dt_pkt.strftime("%d-%m-%Y at %I:%M %p")
-        emoji = "➖" if transaction_type == "Expense" else "➕"
+        emoji = "➖" if transaction_type == "Expense" else "➕" if transaction_type == "Income" else "➖"
         st.info(f"Preview {emoji} {transaction_type}: {category} | {formatted_dt} | PKR {amount:,}")
 
     if submitted:
@@ -280,7 +292,7 @@ def render_add_transaction_tab(notion_service):
             notion_service.save_transaction(transaction_type, category, transaction_date, transaction_time, amount,
                                             description)
         else:
-            st.warning("Missing or Invalid Data Detected!")
+            st.warning("⚠️ Missing or Invalid Data Detected!")
 
 
 def render_dashboard(df):
@@ -290,6 +302,8 @@ def render_dashboard(df):
     total_income = df[df["type"] == "Income"]["amount"].sum()
     total_expense = df[df["type"] == "Expense"]["amount"].sum()
     savings = df[df["category"] == "Savings"]["amount"].sum()
+    savings_debit = df[df["type"] == "Savings Debit"]["amount"].sum()
+    net_savings = savings - savings_debit
     physical_investments = df[df["category"] == "Physical Investments"]["amount"].sum()
     stocks = df[df["category"] == "Stocks"]["amount"].sum()
     mutual_funds = df[df["category"] == "Mutual Funds"]["amount"].sum()
@@ -307,6 +321,8 @@ def render_dashboard(df):
     col_a.metric("💹 Total Mutual Funds", f"PKR {mutual_funds:,.2f}",
                  delta=f"{mutual_funds / total_income * 100:.1f}%" if total_income > 0 else "0%")
     col_c.metric("💵 Net Balance", f"PKR {net_balance:,.2f}", delta=f"{net_balance:,.2f}", delta_arrow="off")
+    col_c.metric("🤑 Net Savings", f"PKR {net_savings:,.2f}",
+                 delta=f"{net_savings / total_income * 100:.1f}%" if total_income > 0 else "0%")
 
     st.subheader("Income vs Expenses by Month")
     month_summary = df.groupby(["month", "type"])["amount"].sum().reset_index()
@@ -347,7 +363,7 @@ def render_dashboard(df):
 
 
 def render_by_month(notion_service):
-    """Render by month view with separate Month and Year selectors, fetching filtered data from Notion"""
+    """Render by month view with separate Month and Year selectors"""
     st.subheader("Filter by Month")
 
     pkt = pytz.timezone("Asia/Karachi")
@@ -389,6 +405,8 @@ def render_by_month(notion_service):
     income = filtered_df[filtered_df["type"] == "Income"]["amount"].sum()
     expense = filtered_df[filtered_df["type"] == "Expense"]["amount"].sum()
     savings = filtered_df[filtered_df["category"] == "Savings"]["amount"].sum()
+    savings_debit = filtered_df[filtered_df["type"] == "Savings Debit"]["amount"].sum()
+    net_savings = savings - savings_debit
     physical_investments = filtered_df[filtered_df["category"] == "Physical Investments"]["amount"].sum()
     stocks = filtered_df[filtered_df["category"] == "Stocks"]["amount"].sum()
     mutual_funds = filtered_df[filtered_df["category"] == "Mutual Funds"]["amount"].sum()
@@ -402,6 +420,7 @@ def render_by_month(notion_service):
     col_a.metric("🥇 Physical Investments", f"PKR {physical_investments:,.2f}")
     col_a.metric("📈 Stocks", f"PKR {stocks:,.2f}")
     col_a.metric("💹 Mutual Funds", f"PKR {mutual_funds:,.2f}")
+    col_c.metric("😔 Debit Savings", f"PKR {savings_debit:,.2f}")
 
 
 def render_all_data(df):
@@ -570,7 +589,7 @@ def render_search_filter_tab(notion_service):
                 date_to = st.date_input("To", value=max_date, min_value=min_date, max_value=max_date, key="date_to")
 
             st.write("**Transaction Type**")
-            selected_type = st.selectbox("Select Type", ["All", "Income", "Expense"])
+            selected_type = st.selectbox("Select Type", ["All", "Income", "Expense",  "Savings Debit"])
 
         with filter_col2:
             st.write("**Amount Range**")
@@ -604,12 +623,14 @@ def render_search_filter_tab(notion_service):
             total_income = filtered_df[filtered_df["type"] == "Income"]["amount"].sum()
             total_expense = filtered_df[filtered_df["type"] == "Expense"]["amount"].sum()
             total_savings = filtered_df[filtered_df["category"] == "Savings"]["amount"].sum()
+            debit_savings = filtered_df[filtered_df["type"] == "Savings Debit"]["amount"].sum()
+            net_savings = total_savings - debit_savings
             net_balance = total_income - total_expense
 
             with col1:
                 st.metric("💰 Total Income", f"PKR {total_income:,.2f}")
                 st.metric("💸 Total Expenses", f"PKR {total_expense:,.2f}")
-                st.metric("🤑 Total Savings", f"PKR {total_savings:,.2f}")
+                st.metric("🤑 Total Savings", f"PKR {net_savings:,.2f}")
 
             with col2:
                 st.metric("💵 Net Balance", f"PKR {net_balance:,.2f}")
@@ -637,7 +658,7 @@ def render_search_filter_tab(notion_service):
                 st.bar_chart(category_chart.set_index("category"))
 
             if selected_type == "All":
-                st.subheader("Income vs Expenses")
+                st.subheader("Income vs Expenses vs Savings Debit")
                 type_summary = filtered_df.groupby("type")["amount"].sum().reset_index()
                 st.bar_chart(type_summary.set_index("type"))
         else:

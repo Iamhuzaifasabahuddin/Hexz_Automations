@@ -131,6 +131,7 @@ EXPENSE_CATEGORIES = [
 INCOME_CATEGORIES = [
     "Salary", "Freelance", "Bonus", "Investment", "Gift", "Other"
 ]
+
 SAVINGS_DEBIT_CATEGORIES = [
     "Shopping", "Food & Dining", "Transportation", "Entertainment",
     "Healthcare", "Education", "Travel", "Electronics", "Clothing", "Other"
