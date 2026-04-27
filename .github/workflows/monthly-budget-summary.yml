@@ -1,4 +1,4 @@
-name: Monthly Budget Summary
+name: Hexz Monthly Budget Summary
 
 on:
   schedule:
