@@ -247,7 +247,7 @@ def build_html_email(meta: dict, events: list) -> str:
         <tr>
           <td style='padding:14px 10px 4px 12px;font-size:22px;width:40px;vertical-align:top;'>{emoji}</td>
           <td style='padding:14px 8px 4px;font-family:"Plus Jakarta Sans",Arial,sans-serif;font-size:12px;font-weight:800;color:{occ_color};letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap;vertical-align:top;'>{t} <span style="font-size:9px;font-weight:600;opacity:0.6;">PKT</span></td>
-          <td style='padding:14px 8px 4px;font-family:"Plus Jakarta Sans",Arial,sans-serif;font-size:15px;font-weight:700;color:#1a1a2e;vertical-align:top;line-height:1.3;'>{name}</td>
+          <td style='padding:14px 8px 4px;font-family:"Plus Jakarta Sans",Arial,sans-serif;font-size:15px;font-weight:800;color:#1a1a2e;vertical-align:top;line-height:1.3;text-transform:uppercase'>{name}</td>
           <td style='padding:14px 12px 4px;text-align:right;vertical-align:top;'>{dur_badge}</td>
         </tr>
         {detail_html}"""
