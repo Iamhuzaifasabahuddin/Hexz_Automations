@@ -25,6 +25,7 @@ jobs:
           pip install notion-client
       
       - name: Send monthly summary
+        working-directory: scripts
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}

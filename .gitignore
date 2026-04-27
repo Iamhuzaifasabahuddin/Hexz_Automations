@@ -7,3 +7,6 @@ Test.py
 .misc
 Test2.py
 *.env
+PublishingInfo.py
+invoice_generator.py
+KDP Royalty Calculator.py
