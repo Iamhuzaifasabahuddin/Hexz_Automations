@@ -1,7 +1,7 @@
 name: Streamlit Wakeup
 on:
     schedule:
-        - cron: '0 *4 * * *'  # Every 4 hours
+        - cron: "0 */4 * * *" 
     workflow_dispatch:
 
 jobs:
