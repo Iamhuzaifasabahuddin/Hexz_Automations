@@ -160,6 +160,11 @@ pip install -r requirements.txt
 ---
 
 ## 🔐 Secrets Configuration
+```python
+import hashlib
+password = "Your Password"
+print(hashlib.sha256(password.encode()).hexdigest())
+```
 
 Create `.streamlit/secrets.toml`:
 
@@ -179,6 +184,7 @@ cookie_key = "secure_random_key"
 cookie_name = "hexz_cookie"
 cookie_expiry_days = 30
 ```
+
 
 ⚠️ **Important:** Never commit `secrets.toml` to version control.
 
