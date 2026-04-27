@@ -1,4 +1,4 @@
-name: Monthly Ride Summary
+name: Rides Monthly Ride Summary
 
 on:
   schedule:
