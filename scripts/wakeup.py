@@ -15,6 +15,7 @@ STREAMLIT_URLS = [
     "https://blinkdigitally.streamlit.app/",
     "https://hexzbudget.streamlit.app/",
     "https://hexzridetracker.streamlit.app/",
+    "https://cafe1947bookingsystem.streamlit.app/"
 ]
 
 def wake_app(driver, url):
