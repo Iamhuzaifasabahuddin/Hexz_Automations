@@ -666,6 +666,101 @@ def render_search_filter_tab(notion_service):
     else:
         st.info("❌ No transactions recorded yet.")
 
+def render_yearly_summary_tab(notion_service):
+    """Render the Yearly Summary tab"""
+    st.header("📈 Yearly Summary")
+
+    if st.button("🔄 Refresh Data", key="refresh_yearly"):
+        st.cache_data.clear()
+        st.rerun()
+
+    transactions = notion_service.get_transactions()
+
+    if transactions:
+        df = pd.DataFrame(transactions)
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df["year"] = df["date"].dt.year
+
+        years = sorted(df["year"].unique(), reverse=True)
+
+        selected_year = st.selectbox("Select Year", years)
+
+        yearly_df = df[df["year"] == selected_year]
+
+        if not yearly_df.empty:
+            st.subheader(f"Summary for {selected_year}")
+
+            total_income = yearly_df[yearly_df["type"] == "Income"]["amount"].sum()
+            total_expense = yearly_df[yearly_df["type"] == "Expense"]["amount"].sum()
+            total_savings = yearly_df[yearly_df["category"] == "Savings"]["amount"].sum()
+            savings_debit = yearly_df[yearly_df["type"] == "Savings Debit"]["amount"].sum()
+            net_savings = total_savings - savings_debit
+            physical_investments = yearly_df[yearly_df["category"] == "Physical Investments"]["amount"].sum()
+            stocks = yearly_df[yearly_df["category"] == "Stocks"]["amount"].sum()
+            mutual_funds = yearly_df[yearly_df["category"] == "Mutual Funds"]["amount"].sum()
+            net_balance = total_income - total_expense
+
+            col_a, col_b, col_c = st.columns(3)
+            col_a.metric("💰 Total Income", f"PKR {total_income:,.2f}")
+            col_b.metric("💸 Total Expenses", f"PKR {total_expense:,.2f}")
+            col_c.metric("💵 Net Balance", f"PKR {net_balance:,.2f}")
+
+            col_a.metric("💳 Total Savings", f"PKR {total_savings:,.2f}",
+                         delta=f"{total_savings / total_income * 100:.1f}%" if total_income > 0 else "0%")
+            col_b.metric("🥇 Physical Investments", f"PKR {physical_investments:,.2f}",
+                         delta=f"{physical_investments / total_income * 100:.1f}%" if total_income > 0 else "0%")
+            col_c.metric("🤑 Net Savings", f"PKR {net_savings:,.2f}",
+                         delta=f"{net_savings / total_income * 100:.1f}%" if total_income > 0 else "0%")
+
+            col_a.metric("📈 Total Stocks", f"PKR {stocks:,.2f}",
+                         delta=f"{stocks / total_income * 100:.1f}%" if total_income > 0 else "0%")
+            col_b.metric("💹 Total Mutual Funds", f"PKR {mutual_funds:,.2f}",
+                         delta=f"{mutual_funds / total_income * 100:.1f}%" if total_income > 0 else "0%")
+
+
+            st.subheader("Monthly Breakdown")
+            month_pivot = yearly_df.groupby([yearly_df["date"].dt.to_period("M"), "type"])["amount"].sum().reset_index()
+            month_pivot["date"] = month_pivot["date"].astype(str)
+            month_pivot = month_pivot.pivot(index="date", columns="type", values="amount").fillna(0)
+            st.bar_chart(month_pivot)
+
+
+            expense_df = yearly_df[yearly_df["type"] == "Expense"]
+            if not expense_df.empty:
+                st.subheader("Expenses by Category")
+                category_totals = expense_df.groupby("category")["amount"].sum().reset_index().sort_values(
+                    "amount", ascending=False)
+                st.bar_chart(category_totals.set_index("category"))
+
+                st.subheader("Expense Breakdown")
+                exp_cols = st.columns(min(len(category_totals), 3))
+                for i, (_, row) in enumerate(category_totals.iterrows()):
+                    exp_cols[i % len(exp_cols)].metric(label=row["category"], value=f"PKR {row['amount']:,.2f}")
+
+
+            income_df = yearly_df[yearly_df["type"] == "Income"]
+            if not income_df.empty:
+                st.subheader("Income by Category")
+                income_category_totals = income_df.groupby("category")["amount"].sum().reset_index().sort_values(
+                    "amount", ascending=False)
+                st.bar_chart(income_category_totals.set_index("category"))
+
+                st.subheader("Income Breakdown")
+                inc_cols = st.columns(min(len(income_category_totals), 3))
+                for i, (_, row) in enumerate(income_category_totals.iterrows()):
+                    inc_cols[i % len(inc_cols)].metric(label=row["category"], value=f"PKR {row['amount']:,.2f}")
+
+
+            st.subheader("Investment Summary")
+            inv_col1, inv_col2, inv_col3 = st.columns(3)
+            inv_col1.metric("🥇 Physical Investments", f"PKR {physical_investments:,.2f}")
+            inv_col2.metric("📈 Stocks", f"PKR {stocks:,.2f}")
+            inv_col3.metric("💹 Mutual Funds", f"PKR {mutual_funds:,.2f}")
+
+        else:
+            st.info(f"No transactions found for {selected_year}.")
+    else:
+        st.info("❌ No transactions recorded yet.")
 
 def main():
     """Main application entry point"""
@@ -686,7 +781,8 @@ def main():
         st.rerun()
 
     notion_service = NotionService()
-    main_tabs = st.tabs(["💸 Add Transaction", "📊 View Budget", "🔍 Search & Filter"])
+    main_tabs = st.tabs(["💸 Add Transaction", "📊 View Budget", "🔍 Search & Filter", "📈 Yearly Summary"])
+
 
     with main_tabs[0]:
         render_add_transaction_tab(notion_service)
@@ -696,6 +792,8 @@ def main():
 
     with main_tabs[2]:
         render_search_filter_tab(notion_service)
+    with main_tabs[3]:
+        render_yearly_summary_tab(notion_service)
 
 
 if __name__ == "__main__":
