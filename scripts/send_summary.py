@@ -12,6 +12,7 @@ notion = Client(auth=os.environ["NOTION_TOKEN"])
 datasource_id = os.environ["NOTION_DATASOURCE_ID"]
 
 
+
 def get_all_rides(month=None):
     """Fetch rides from Notion with optional Month filter + pagination"""
 
@@ -22,6 +23,7 @@ def get_all_rides(month=None):
     base_params = {
         "data_source_id": datasource_id
     }
+
 
     if month:
         base_params["filter"] = {
@@ -43,32 +45,12 @@ def get_all_rides(month=None):
         for row in data["results"]:
             props = row["properties"]
 
-            ride_date = (
-                props["Date"]["date"]["start"]
-                if props["Date"]["date"] else None
-            )
-
-            amount = (
-                props["Amount"]["number"]
-                if props["Amount"]["number"] else 0
-            )
-
-            month_val = (
-                props["Month"]["rich_text"][0]["text"]["content"]
-                if props["Month"]["rich_text"] else "Unknown"
-            )
-
-            ride_time = (
-                props["Time"]["rich_text"][0]["text"]["content"]
-                if props["Time"]["rich_text"] else "Unknown"
-            )
-
             rides.append({
                 "id": row["id"],
-                "date": ride_date,
-                "time": ride_time,
-                "amount": amount,
-                "month": month_val
+                "date": props["Date"]["date"]["start"] if props["Date"]["date"] else None,
+                "time": props["Time"]["rich_text"][0]["text"]["content"] if props["Time"]["rich_text"] else "Unknown",
+                "amount": props["Amount"]["number"] or 0,
+                "month": props["Month"]["rich_text"][0]["text"]["content"] if props["Month"]["rich_text"] else "Unknown"
             })
 
         has_more = data.get("has_more", False)
@@ -77,8 +59,10 @@ def get_all_rides(month=None):
     return rides
 
 
-def get_previous_month_summary(rides):
-    """Generate summary for the previous month"""
+
+def get_previous_month_name():
+    """Return previous month in 'Month Year' format"""
+
     today = datetime.now()
 
     if today.month == 1:
@@ -88,29 +72,39 @@ def get_previous_month_summary(rides):
         prev_month = today.month - 1
         prev_year = today.year
 
-    prev_month_name = calendar.month_name[prev_month]
-    prev_month_year = f"{prev_month_name} {prev_year}"
+    return f"{calendar.month_name[prev_month]} {prev_year}"
 
-    month_rides = [r for r in rides if r["month"] == prev_month_year]
 
-    if not month_rides:
+
+def get_previous_month_summary():
+    """Generate ride summary for previous month (filtered at source)"""
+
+    prev_month = get_previous_month_name()
+
+    rides = get_all_rides(month=prev_month)
+
+    if not rides:
         return None
 
-    total_spent = sum(r["amount"] for r in month_rides)
-    total_rides = len(month_rides)
+    total_spent = sum(r["amount"] for r in rides)
+    total_rides = len(rides)
     avg_cost = total_spent / total_rides if total_rides > 0 else 0
-    most_expensive = max(month_rides, key=lambda x: x["amount"])
-    cheapest = min(month_rides, key=lambda x: x["amount"])
+
+    most_expensive = max(rides, key=lambda x: x["amount"], default=None)
+    cheapest = min(rides, key=lambda x: x["amount"], default=None)
 
     time_breakdown = {}
-    for ride in month_rides:
-        time = ride["time"]
-        time_breakdown[time] = time_breakdown.get(time, 0) + 1
 
-    most_common_time = max(time_breakdown, key=time_breakdown.get) if time_breakdown else "N/A"
+    for r in rides:
+        time_breakdown[r["time"]] = time_breakdown.get(r["time"], 0) + 1
+
+    most_common_time = (
+        max(time_breakdown, key=time_breakdown.get)
+        if time_breakdown else "N/A"
+    )
 
     return {
-        "month": prev_month_year,
+        "month": prev_month,
         "total_spent": total_spent,
         "total_rides": total_rides,
         "avg_cost": avg_cost,
@@ -121,8 +115,10 @@ def get_previous_month_summary(rides):
     }
 
 
+
 def send_email(summary):
-    """Send monthly summary via Gmail SMTP"""
+    """Send monthly ride summary via Gmail SMTP"""
+
     sender_email = os.environ["SENDER_EMAIL"]
     sender_password = os.environ["SENDER_PASSWORD"]
     recipient_email = os.environ["RECIPIENT_EMAIL"]
@@ -133,84 +129,69 @@ def send_email(summary):
     message["To"] = recipient_email
 
     time_html = ""
-    for time, count in summary['time_breakdown'].items():
-        percentage = (count / summary['total_rides']) * 100
+
+    for time, count in summary["time_breakdown"].items():
+        percentage = (count / summary["total_rides"]) * 100 if summary["total_rides"] > 0 else 0
         time_html += f"<li><strong>{time}:</strong> {count} rides ({percentage:.1f}%)</li>"
 
     html = f"""
-	<html>
-		<body style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9f9f9;">
-			<div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-				<h2 style="color: #333; border-bottom: 3px solid #4CAF50; padding-bottom: 10px;">
-					🚗 Your {summary['month']} Ride Summary
-				</h2>
+    <html>
+        <body style="font-family: Arial; padding:20px; background:#f9f9f9;">
+            <div style="max-width:600px;margin:auto;background:white;padding:25px;border-radius:10px;">
 
-				<div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-					<h3 style="color: #4CAF50; margin-top: 0;">📊 Overall Statistics</h3>
-					<ul style="font-size: 16px; line-height: 2;">
-						<li><strong>Total Rides:</strong> {summary['total_rides']}</li>
-						<li><strong>Total Spent:</strong> <span style="color: #e74c3c; font-size: 18px;">PKR {summary['total_spent']:.2f}</span></li>
-						<li><strong>Average Cost:</strong> PKR {summary['avg_cost']:.2f}</li>
-					</ul>
-				</div>
+                <h2>🚗 {summary['month']} Ride Summary</h2>
 
-				<div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
-					<h3 style="color: #856404; margin-top: 0;">💰 Ride Details</h3>
-					<ul style="font-size: 16px; line-height: 2;">
-						<li><strong>Most Expensive:</strong> PKR {summary['most_expensive']['amount']:.2f} on {summary['most_expensive']['date']} at {summary['most_expensive']['time']}</li>
-						<li><strong>Cheapest:</strong> PKR {summary['cheapest']['amount']:.2f} on {summary['cheapest']['date']} at {summary['cheapest']['time']}</li>
-						<li><strong>Most Common Time:</strong> {summary['most_common_time']}</li>
-					</ul>
-				</div>
+                <h3>📊 Overview</h3>
+                <ul>
+                    <li>Total Rides: {summary['total_rides']}</li>
+                    <li>Total Spent: PKR {summary['total_spent']:.2f}</li>
+                    <li>Average Cost: PKR {summary['avg_cost']:.2f}</li>
+                </ul>
 
-				<div style="background-color: #d1ecf1; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #17a2b8;">
-					<h3 style="color: #0c5460; margin-top: 0;">⏰ Time Breakdown</h3>
-					<ul style="font-size: 16px; line-height: 2;">
-						{time_html}
-					</ul>
-				</div>
+                <h3>💰 Details</h3>
+                <ul>
+                    <li>Most Expensive: PKR {summary['most_expensive']['amount']:.2f} on {summary['most_expensive']['date']} at {summary['most_expensive']['time']}</li>
+                    <li>Cheapest: PKR {summary['cheapest']['amount']:.2f} on {summary['cheapest']['date']} at {summary['cheapest']['time']}</li>
+                    <li>Most Common Time: {summary['most_common_time']}</li>
+                </ul>
 
-				<div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
-					<p style="color: #666; font-size: 14px;">
-						Keep tracking your rides to stay on budget! 💪
-					</p>
-					<p style="color: #999; font-size: 12px;">
-						Sent automatically by Hexz Drive Log
-					</p>
-				</div>
-			</div>
-		</body>
-	</html>
-	"""
+                <h3>⏰ Time Breakdown</h3>
+                <ul>
+                    {time_html}
+                </ul>
 
-    part = MIMEText(html, "html")
-    message.attach(part)
+            </div>
+        </body>
+    </html>
+    """
+
+    message.attach(MIMEText(html, "html"))
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_email, sender_password)
             server.sendmail(sender_email, recipient_email, message.as_string())
-        print(f"✅ Monthly summary sent successfully for {summary['month']}!")
+
+        print(f"✅ Email sent for {summary['month']}")
         return True
+
     except Exception as e:
-        print(f"❌ Failed to send email: {e}")
+        print(f"❌ Email failed: {e}")
         return False
 
 
-def main():
-    """Main function to generate and send monthly summary"""
-    print("🔄 Fetching rides from Notion...")
-    rides = get_all_rides()
-    print(f"📊 Found {len(rides)} total rides")
 
-    print("📅 Generating previous month summary...")
-    summary = get_previous_month_summary(rides)
+
+def main():
+    print("📅 Generating ride summary...")
+
+    summary = get_previous_month_summary()
 
     if not summary:
         print("⚠️ No rides found for previous month")
         return
 
-    print(f"📧 Sending summary for {summary['month']}...")
+    print("📧 Sending email...")
     send_email(summary)
 
 
