@@ -12,29 +12,52 @@ notion = Client(auth=os.environ["NOTION_TOKEN"])
 datasource_id = os.environ["NOTION_DATASOURCE_ID"]
 
 
-def get_all_rides():
-    """Fetch all rides from Notion with pagination"""
+def get_all_rides(month=None):
+    """Fetch rides from Notion with optional Month filter + pagination"""
+
     rides = []
     has_more = True
     start_cursor = None
 
+    base_params = {
+        "data_source_id": datasource_id
+    }
+
+    if month:
+        base_params["filter"] = {
+            "property": "Month",
+            "rich_text": {
+                "equals": month
+            }
+        }
+
     while has_more:
+
+        params = base_params.copy()
+
         if start_cursor:
-            data = notion.data_sources.query(
-                data_source_id=datasource_id,
-                start_cursor=start_cursor
-            )
-        else:
-            data = notion.data_sources.query(data_source_id=datasource_id)
+            params["start_cursor"] = start_cursor
+
+        data = notion.data_sources.query(**params)
 
         for row in data["results"]:
             props = row["properties"]
-            ride_date = props["Date"]["date"]["start"] if props["Date"]["date"] else None
-            amount = props["Amount"]["number"] if props["Amount"]["number"] else 0
-            month = (
+
+            ride_date = (
+                props["Date"]["date"]["start"]
+                if props["Date"]["date"] else None
+            )
+
+            amount = (
+                props["Amount"]["number"]
+                if props["Amount"]["number"] else 0
+            )
+
+            month_val = (
                 props["Month"]["rich_text"][0]["text"]["content"]
                 if props["Month"]["rich_text"] else "Unknown"
             )
+
             ride_time = (
                 props["Time"]["rich_text"][0]["text"]["content"]
                 if props["Time"]["rich_text"] else "Unknown"
@@ -45,7 +68,7 @@ def get_all_rides():
                 "date": ride_date,
                 "time": ride_time,
                 "amount": amount,
-                "month": month
+                "month": month_val
             })
 
         has_more = data.get("has_more", False)
