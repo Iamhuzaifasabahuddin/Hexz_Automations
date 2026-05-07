@@ -7,8 +7,12 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 
+
+
 notion = Client(auth=os.environ["NOTION_TOKEN"])
 datasource_id = os.environ["NOTION_DATASOURCE_ID"]
+
+
 
 
 def get_all_transactions(month=None):
@@ -18,12 +22,12 @@ def get_all_transactions(month=None):
     has_more = True
     start_cursor = None
 
-    query_params = {
+    base_params = {
         "data_source_id": datasource_id
     }
 
     if month:
-        query_params["filter"] = {
+        base_params["filter"] = {
             "property": "Month",
             "rich_text": {
                 "equals": month
@@ -32,58 +36,25 @@ def get_all_transactions(month=None):
 
     while has_more:
 
-        if start_cursor:
-            query_params["start_cursor"] = start_cursor
+        params = base_params.copy()
 
-        data = notion.data_sources.query(**query_params)
+        if start_cursor:
+            params["start_cursor"] = start_cursor
+
+        data = notion.data_sources.query(**params)
 
         for row in data["results"]:
             props = row["properties"]
 
-            transaction_date = (
-                props["Date"]["date"]["start"]
-                if props["Date"]["date"] else None
-            )
-
-            amount = (
-                props["Amount"]["number"]
-                if props["Amount"]["number"] else 0
-            )
-
-            month_val = (
-                props["Month"]["rich_text"][0]["text"]["content"]
-                if props["Month"]["rich_text"] else "Unknown"
-            )
-
-            transaction_time = (
-                props["Time"]["rich_text"][0]["text"]["content"]
-                if props["Time"]["rich_text"] else "Unknown"
-            )
-
-            transaction_type = (
-                props["Type"]["select"]["name"]
-                if props["Type"]["select"] else "Unknown"
-            )
-
-            category = (
-                props["Category"]["rich_text"][0]["text"]["content"]
-                if props["Category"]["rich_text"] else "Unknown"
-            )
-
-            description = (
-                props["Description"]["rich_text"][0]["text"]["content"]
-                if props["Description"]["rich_text"] else ""
-            )
-
             transactions.append({
                 "id": row["id"],
-                "date": transaction_date,
-                "time": transaction_time,
-                "type": transaction_type,
-                "category": category,
-                "amount": amount,
-                "month": month_val,
-                "description": description
+                "date": props["Date"]["date"]["start"] if props["Date"]["date"] else None,
+                "time": props["Time"]["rich_text"][0]["text"]["content"] if props["Time"]["rich_text"] else "Unknown",
+                "type": props["Type"]["select"]["name"] if props["Type"]["select"] else "Unknown",
+                "category": props["Category"]["rich_text"][0]["text"]["content"] if props["Category"]["rich_text"] else "Unknown",
+                "amount": props["Amount"]["number"] or 0,
+                "month": props["Month"]["rich_text"][0]["text"]["content"] if props["Month"]["rich_text"] else "Unknown",
+                "description": props["Description"]["rich_text"][0]["text"]["content"] if props["Description"]["rich_text"] else ""
             })
 
         has_more = data.get("has_more", False)
@@ -92,8 +63,10 @@ def get_all_transactions(month=None):
     return transactions
 
 
-def get_previous_month_summary(transactions):
-    """Generate summary for the previous month"""
+
+def get_previous_month_name():
+    """Return previous month in 'Month Year' format"""
+
     today = datetime.now()
 
     if today.month == 1:
@@ -103,47 +76,53 @@ def get_previous_month_summary(transactions):
         prev_month = today.month - 1
         prev_year = today.year
 
-    prev_month_name = calendar.month_name[prev_month]
-    prev_month_year = f"{prev_month_name} {prev_year}"
+    return f"{calendar.month_name[prev_month]} {prev_year}"
 
-    month_transactions = [t for t in transactions if t["month"] == prev_month_year]
 
-    if not month_transactions:
+
+def get_previous_month_summary():
+    """Generate financial summary for previous month"""
+
+    prev_month = get_previous_month_name()
+
+    transactions = get_all_transactions(month=prev_month)
+
+    if not transactions:
         return None
 
-    income_transactions = [t for t in month_transactions if t["type"] == "Income"]
-    expense_transactions = [t for t in month_transactions if t["type"] == "Expense"]
+    income = [t for t in transactions if t["type"] == "Income"]
+    expenses = [t for t in transactions if t["type"] == "Expense"]
 
-    total_income = sum(t["amount"] for t in income_transactions)
-    total_expenses = sum(t["amount"] for t in expense_transactions)
-    total_savings = sum(t["amount"] for t in expense_transactions if t["category"] == "Savings")
+    total_income = sum(t["amount"] for t in income)
+    total_expenses = sum(t["amount"] for t in expenses)
+    total_savings = sum(t["amount"] for t in expenses if t["category"] == "Savings")
     net_balance = total_income - total_expenses
 
-
     income_by_category = {}
-    for t in income_transactions:
-        category = t["category"]
-        income_by_category[category] = income_by_category.get(category, 0) + t["amount"]
-
     expense_by_category = {}
-    for t in expense_transactions:
-        category = t["category"]
-        expense_by_category[category] = expense_by_category.get(category, 0) + t["amount"]
 
-    biggest_expense = max(expense_transactions, key=lambda x: x["amount"]) if expense_transactions else None
-    biggest_income = max(income_transactions, key=lambda x: x["amount"]) if income_transactions else None
+    for t in income:
+        income_by_category[t["category"]] = income_by_category.get(t["category"], 0) + t["amount"]
 
-    most_common_expense_category = max(expense_by_category,
-                                       key=expense_by_category.get) if expense_by_category else "N/A"
+    for t in expenses:
+        expense_by_category[t["category"]] = expense_by_category.get(t["category"], 0) + t["amount"]
+
+    biggest_expense = max(expenses, key=lambda x: x["amount"], default=None)
+    biggest_income = max(income, key=lambda x: x["amount"], default=None)
+
+    most_common_expense_category = (
+        max(expense_by_category, key=expense_by_category.get)
+        if expense_by_category else "N/A"
+    )
 
     return {
-        "month": prev_month_year,
+        "month": prev_month,
         "total_income": total_income,
         "total_expenses": total_expenses,
         "total_savings": total_savings,
         "net_balance": net_balance,
-        "income_count": len(income_transactions),
-        "expense_count": len(expense_transactions),
+        "income_count": len(income),
+        "expense_count": len(expenses),
         "income_by_category": income_by_category,
         "expense_by_category": expense_by_category,
         "biggest_expense": biggest_expense,
@@ -153,8 +132,10 @@ def get_previous_month_summary(transactions):
     }
 
 
+
 def send_email(summary):
-    """Send monthly summary via Gmail SMTP"""
+    """Send monthly financial summary via Gmail SMTP"""
+
     sender_email = os.environ["SENDER_EMAIL"]
     sender_password = os.environ["SENDER_PASSWORD"]
     recipient_email = os.environ["RECIPIENT_EMAIL"]
@@ -180,82 +161,57 @@ def send_email(summary):
     html = f"""
     <html>
         <body style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9f9f9;">
-            <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                <h2 style="color: #333; border-bottom: 3px solid #4CAF50; padding-bottom: 10px;">
-                    💰 Your {summary['month']} Budget Summary
-                </h2>
+            <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px;">
 
-                <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                    <h3 style="color: #4CAF50; margin-top: 0;">📊 Financial Overview</h3>
-                    <ul style="font-size: 16px; line-height: 2;">
-                        <li><strong>Total Income:</strong> <span style="color: #27ae60; font-size: 18px;">PKR {summary['total_income']:,.2f}</span></li>
-                        <li><strong>Total Expenses:</strong> <span style="color: #e74c3c; font-size: 18px;">PKR {summary['total_expenses']:,.2f}</span></li>
-                        <li><strong>Net Balance:</strong> <span style="color: {balance_color}; font-size: 18px; font-weight: bold;">PKR {summary['net_balance']:,.2f} {balance_emoji}</span></li>
-                        <li><strong>Total Savings:</strong> <span style="color: #3498db; font-size: 18px;">PKR {summary['total_savings']:,.2f}</span></li>
-                        <li><strong>Savings Rate:</strong> {summary['savings_rate']:.1f}%</li>
-                    </ul>
-                </div>
+                <h2>💰 {summary['month']} Budget Summary</h2>
 
-                <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
-                    <h3 style="color: #155724; margin-top: 0;">💵 Income Breakdown</h3>
-                    <p style="font-size: 16px;"><strong>Total Income Transactions:</strong> {summary['income_count']}</p>
-                    <ul style="font-size: 16px; line-height: 2;">
-                        {income_html if income_html else "<li>No income recorded</li>"}
-                    </ul>
-                    {f'<p style="margin-top: 15px; padding: 10px; background-color: #fff; border-radius: 5px;"><strong>💰 Biggest Income:</strong> PKR {summary["biggest_income"]["amount"]:,.2f} from {summary["biggest_income"]["category"]} on {summary["biggest_income"]["date"]}</p>' if summary['biggest_income'] else ''}
-                </div>
+                <h3>📊 Overview</h3>
+                <ul>
+                    <li>Total Income: PKR {summary['total_income']:,.2f}</li>
+                    <li>Total Expenses: PKR {summary['total_expenses']:,.2f}</li>
+                    <li>Net Balance: <span style="color:{balance_color}">PKR {summary['net_balance']:,.2f} {balance_emoji}</span></li>
+                    <li>Savings Rate: {summary['savings_rate']:.1f}%</li>
+                </ul>
 
-                <div style="background-color: #f8d7da; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc3545;">
-                    <h3 style="color: #721c24; margin-top: 0;">💸 Expense Breakdown</h3>
-                    <p style="font-size: 16px;"><strong>Total Expense Transactions:</strong> {summary['expense_count']}</p>
-                    <ul style="font-size: 16px; line-height: 2;">
-                        {expense_html if expense_html else "<li>No expenses recorded</li>"}
-                    </ul>
-                    {f'<p style="margin-top: 15px; padding: 10px; background-color: #fff; border-radius: 5px;"><strong>💳 Biggest Expense:</strong> PKR {summary["biggest_expense"]["amount"]:,.2f} for {summary["biggest_expense"]["category"]} on {summary["biggest_expense"]["date"]}</p>' if summary['biggest_expense'] else ''}
-                    <p style="margin-top: 10px; padding: 10px; background-color: #fff; border-radius: 5px;"><strong>🔝 Most Common Category:</strong> {summary['most_common_expense_category']}</p>
-                </div>
+                <h3>💵 Income</h3>
+                <ul>{income_html or "<li>No income recorded</li>"}</ul>
 
-                <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
-                    <p style="color: #666; font-size: 14px;">
-                        Keep tracking your finances to reach your goals! 💪
-                    </p>
-                    <p style="color: #999; font-size: 12px;">
-                        Sent automatically by Hexz Budget Tracker
-                    </p>
-                </div>
+                <h3>💸 Expenses</h3>
+                <ul>{expense_html or "<li>No expenses recorded</li>"}</ul>
+
+                <p><strong>Most Common Expense:</strong> {summary['most_common_expense_category']}</p>
+
             </div>
         </body>
     </html>
     """
 
-    part = MIMEText(html, "html")
-    message.attach(part)
+    message.attach(MIMEText(html, "html"))
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_email, sender_password)
             server.sendmail(sender_email, recipient_email, message.as_string())
-        print(f"✅ Monthly budget summary sent successfully for {summary['month']}!")
+
+        print(f"✅ Email sent for {summary['month']}")
         return True
+
     except Exception as e:
-        print(f"❌ Failed to send email: {e}")
+        print(f"❌ Email failed: {e}")
         return False
 
 
-def main():
-    """Main function to generate and send monthly summary"""
-    print("🔄 Fetching transactions from Notion...")
-    transactions = get_all_transactions()
-    print(f"📊 Found {len(transactions)} total transactions")
 
-    print("📅 Generating previous month summary...")
-    summary = get_previous_month_summary(transactions)
+def main():
+    print("📅 Generating previous month report...")
+
+    summary = get_previous_month_summary()
 
     if not summary:
-        print("⚠️ No transactions found for previous month")
+        print("⚠️ No data found for previous month")
         return
 
-    print(f"📧 Sending summary for {summary['month']}...")
+    print("📧 Sending email...")
     send_email(summary)
 
 
