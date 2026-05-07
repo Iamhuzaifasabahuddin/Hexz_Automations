@@ -11,41 +11,65 @@ notion = Client(auth=os.environ["NOTION_TOKEN"])
 datasource_id = os.environ["NOTION_DATASOURCE_ID"]
 
 
-def get_all_transactions():
-    """Fetch all transactions from Notion with pagination"""
+def get_all_transactions(month=None):
+    """Fetch transactions from Notion with optional Month filter + pagination"""
+
     transactions = []
     has_more = True
     start_cursor = None
 
+    query_params = {
+        "data_source_id": datasource_id
+    }
+
+    if month:
+        query_params["filter"] = {
+            "property": "Month",
+            "rich_text": {
+                "equals": month
+            }
+        }
+
     while has_more:
+
         if start_cursor:
-            data = notion.data_sources.query(
-                data_source_id=datasource_id,
-                start_cursor=start_cursor
-            )
-        else:
-            data = notion.data_sources.query(data_source_id=datasource_id)
+            query_params["start_cursor"] = start_cursor
+
+        data = notion.data_sources.query(**query_params)
 
         for row in data["results"]:
             props = row["properties"]
-            transaction_date = props["Date"]["date"]["start"] if props["Date"]["date"] else None
-            amount = props["Amount"]["number"] if props["Amount"]["number"] else 0
-            month = (
+
+            transaction_date = (
+                props["Date"]["date"]["start"]
+                if props["Date"]["date"] else None
+            )
+
+            amount = (
+                props["Amount"]["number"]
+                if props["Amount"]["number"] else 0
+            )
+
+            month_val = (
                 props["Month"]["rich_text"][0]["text"]["content"]
                 if props["Month"]["rich_text"] else "Unknown"
             )
+
             transaction_time = (
                 props["Time"]["rich_text"][0]["text"]["content"]
                 if props["Time"]["rich_text"] else "Unknown"
             )
+
             transaction_type = (
                 props["Type"]["select"]["name"]
                 if props["Type"]["select"] else "Unknown"
             )
+
             category = (
                 props["Category"]["rich_text"][0]["text"]["content"]
                 if props["Category"]["rich_text"] else "Unknown"
             )
+
             description = (
                 props["Description"]["rich_text"][0]["text"]["content"]
                 if props["Description"]["rich_text"] else ""
@@ -58,7 +82,7 @@ def get_all_transactions():
                 "type": transaction_type,
                 "category": category,
                 "amount": amount,
-                "month": month,
+                "month": month_val,
                 "description": description
             })
 
