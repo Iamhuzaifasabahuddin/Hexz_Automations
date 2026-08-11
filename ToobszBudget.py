@@ -22,6 +22,8 @@ def setup_page():
     <style>
         #MainMenu {visibility: hidden;}
         header {visibility: hidden;}
+        .block-container {padding-top: 2rem;}
+        [data-testid="stMetricValue"] {font-size: 1.15rem;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -124,8 +126,9 @@ def login_page(auth):
 
 
 EXPENSE_CATEGORIES = [
-    "Food & Dining", "Transportation", "Shopping", "Entertainment",
-    "Bills & Utilities", "Healthcare", "Education", "Savings", "Physical Investments", "Stocks", "Mutual Funds", "Other"
+    "Rent", "Bills & Utilities", "Food & Dining", "Transportation", "Shopping",
+    "Entertainment", "Healthcare", "Education", "Savings", "Physical Investments",
+    "Stocks", "Mutual Funds", "Other"
 ]
 
 INCOME_CATEGORIES = [
@@ -141,6 +144,93 @@ MONTHS = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
 ]
+
+# ---------- Budget Allocation Plan ----------
+# Share of monthly salary assigned to each bucket
+BUDGET_ALLOCATIONS = {
+    "Bills & Rent": 0.55,
+    "Daily Life": 0.25,
+    "Pro Investments": 0.10,
+    "Savings": 0.10,
+}
+
+# Which spending categories count toward each bucket
+BUCKET_CATEGORIES = {
+    "Bills & Rent": ["Rent", "Bills & Utilities"],
+    "Daily Life": [
+        "Food & Dining", "Transportation", "Shopping", "Entertainment",
+        "Healthcare", "Education", "Other"
+    ],
+    "Pro Investments": ["Physical Investments", "Stocks", "Mutual Funds"],
+    "Savings": ["Savings"],
+}
+
+BUCKET_EMOJIS = {
+    "Bills & Rent": "🏠",
+    "Daily Life": "🛒",
+    "Pro Investments": "📈",
+    "Savings": "💳",
+}
+
+
+def compute_bucket_actuals(df):
+    """Compute actual spend per allocation bucket from a transactions DataFrame"""
+    actuals = {}
+    for bucket, cats in BUCKET_CATEGORIES.items():
+        mask = (df["type"] == "Expense") & (df["category"].isin(cats))
+        actuals[bucket] = float(df.loc[mask, "amount"].sum())
+
+    net_savings = actuals["Savings"] - float(df[df["type"] == "Savings Debit"]["amount"].sum())
+    actuals["Savings"] = net_savings
+    return actuals
+
+
+def build_allocation_frame(salary, actuals):
+    """Build the allocation summary DataFrame"""
+    rows = []
+    for name, pct in BUDGET_ALLOCATIONS.items():
+        target = salary * pct
+        actual = actuals.get(name, 0.0)
+        rows.append({
+            "Bucket": name,
+            "Allocation": f"{pct * 100:.0f}%",
+            "Target (PKR)": target,
+            "Actual (PKR)": actual,
+            "Remaining (PKR)": target - actual,
+            "Utilized": f"{actual / target * 100:.1f}%" if target > 0 else "—",
+        })
+    return pd.DataFrame(rows)
+
+
+def render_bucket_progress(name, pct, target, actual):
+    """Render a single allocation bucket with progress bar and status"""
+    ratio = actual / target if target > 0 else 0.0
+
+    if ratio > 1.0:
+        status = "🔴 Over budget"
+    elif ratio >= 0.9:
+        status = "🟡 Near limit"
+    else:
+        status = "🟢 On track"
+
+    remaining = target - actual
+
+    with st.container(border=True):
+        col_1, col_2, col_3 = st.columns([2, 3, 2])
+        col_1.metric(
+            f"{BUCKET_EMOJIS.get(name, '🎯')} {name}",
+            f"{pct * 100:.0f}% of salary",
+            f"Target PKR {target:,.0f}"
+        )
+        col_2.write(f"**Spent:** PKR {actual:,.2f} ({ratio * 100:.1f}% of target)")
+        col_2.progress(min(ratio, 1.0))
+        col_3.metric(
+            "Remaining",
+            f"PKR {remaining:,.2f}",
+            delta=f"{'over' if remaining < 0 else 'left'}",
+            delta_color="inverse" if remaining < 0 else "normal",
+        )
+        st.caption(status)
 
 
 class NotionService:
@@ -312,17 +402,21 @@ def render_dashboard(df):
     col_a, col_b, col_c = st.columns(3)
     col_a.metric("💰 Total Income", f"PKR {total_income:,.2f}")
     col_b.metric("💸 Total Expenses", f"PKR {total_expense:,.2f}")
+    col_c.metric("💵 Net Balance", f"PKR {net_balance:,.2f}", delta_arrow="off")
+
     col_a.metric("💳 Total Savings", f"PKR {savings:,.2f}",
                  delta=f"{savings / total_income * 100:.1f}%" if total_income > 0 else "0%")
-    col_a.metric("🥇 Total Physical Investments", f"PKR {physical_investments:,.2f}",
-                 delta=f"{physical_investments / total_income * 100:.1f}%" if total_income > 0 else "0%")
-    col_a.metric("📈 Total Stocks", f"PKR {stocks:,.2f}",
-                 delta=f"{stocks / total_income * 100:.1f}%" if total_income > 0 else "0%")
-    col_a.metric("💹 Total Mutual Funds", f"PKR {mutual_funds:,.2f}",
-                 delta=f"{mutual_funds / total_income * 100:.1f}%" if total_income > 0 else "0%")
-    col_c.metric("💵 Net Balance", f"PKR {net_balance:,.2f}", delta=f"{net_balance:,.2f}", delta_arrow="off")
-    col_c.metric("🤑 Net Savings", f"PKR {net_savings:,.2f}",
+    col_b.metric("🤑 Net Savings", f"PKR {net_savings:,.2f}",
                  delta=f"{net_savings / total_income * 100:.1f}%" if total_income > 0 else "0%")
+    col_c.metric("😔 Savings Debits", f"PKR {savings_debit:,.2f}")
+
+    st.subheader("📈 Investments")
+    col_a.metric("🥇 Physical Investments", f"PKR {physical_investments:,.2f}",
+                 delta=f"{physical_investments / total_income * 100:.1f}%" if total_income > 0 else "0%")
+    col_b.metric("📈 Stocks", f"PKR {stocks:,.2f}",
+                 delta=f"{stocks / total_income * 100:.1f}%" if total_income > 0 else "0%")
+    col_c.metric("💹 Mutual Funds", f"PKR {mutual_funds:,.2f}",
+                 delta=f"{mutual_funds / total_income * 100:.1f}%" if total_income > 0 else "0%")
 
     st.subheader("Income vs Expenses by Month")
     month_summary = df.groupby(["month", "type"])["amount"].sum().reset_index()
@@ -560,6 +654,119 @@ def render_budget_overview_tab(notion_service):
             st.info("❌ No transactions recorded yet.")
 
 
+def render_budget_stats_tab(notion_service):
+    """Render the Budget Allocation Stats tab"""
+    st.header("🎯 Budget Allocation Stats")
+
+    if st.button("🔄 Refresh Data", key="refresh_stats"):
+        st.cache_data.clear()
+        st.rerun()
+
+    st.caption(
+        "See how your salary splits across the four budget buckets. "
+        "🏠 Bills & Rent 55% · 🛒 Daily Life 25% · 📈 Pro Investments 10% · 💳 Savings 10%"
+    )
+
+    pkt = pytz.timezone("Asia/Karachi")
+    now_pkt = datetime.now(pkt)
+
+    transactions = notion_service.get_transactions()
+
+    if not transactions:
+        st.info("❌ No transactions recorded yet.")
+        return
+
+    df = pd.DataFrame(transactions)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_month_name = st.selectbox(
+            "Month",
+            MONTHS,
+            index=now_pkt.month - 1,
+            key="stats_month"
+        )
+    with col2:
+        years = list(range(2025, now_pkt.year + 1))
+        selected_year = st.selectbox(
+            "Year",
+            years,
+            index=years.index(now_pkt.year),
+            key="stats_year"
+        )
+
+    month_str = f"{selected_month_name} {selected_year}"
+    month_df = df[df["month"] == month_str]
+
+    if month_df.empty:
+        st.info(f"No transactions found for {month_str}.")
+        return
+
+    salary_income = month_df[(month_df["type"] == "Income") & (month_df["category"] == "Salary")]["amount"].sum()
+    default_salary = float(salary_income) if salary_income > 0 else 0.0
+
+    salary_key = f"salary_{month_str}"
+    if salary_key not in st.session_state:
+        st.session_state[salary_key] = default_salary
+
+    st.write("**Monthly Salary (PKR)**")
+    salary = st.number_input(
+        "Monthly Salary",
+        min_value=0.0,
+        step=1000.0,
+        key=salary_key,
+        label_visibility="collapsed",
+    )
+
+    if salary <= 0:
+        st.info(
+            "💡 Enter your monthly salary above (or record a **Salary** income for this month) "
+            "to unlock allocation stats."
+        )
+        return
+
+    actuals = compute_bucket_actuals(month_df)
+
+    st.subheader("📊 Salary Allocation Overview")
+    col_a, col_b, col_c, col_d = st.columns(4)
+    col_a.metric("💰 Monthly Salary", f"PKR {salary:,.0f}")
+    col_b.metric("🎯 Total Targeted", f"PKR {salary:,.0f}")
+    spent_total = sum(actuals.values())
+    col_c.metric("💸 Total Bucket Spend", f"PKR {spent_total:,.0f}")
+    col_d.metric("🧮 Utilization", f"{spent_total / salary * 100:.1f}%")
+
+    for name, pct in BUDGET_ALLOCATIONS.items():
+        target = salary * pct
+        actual = actuals.get(name, 0.0)
+        render_bucket_progress(name, pct, target, actual)
+
+    st.subheader("📋 Allocation Breakdown")
+    st.dataframe(
+        build_allocation_frame(salary, actuals),
+        hide_index=True,
+        column_config={
+            "Target (PKR)": st.column_config.NumberColumn(format="PKR %.0f"),
+            "Actual (PKR)": st.column_config.NumberColumn(format="PKR %.0f"),
+            "Remaining (PKR)": st.column_config.NumberColumn(format="PKR %.0f"),
+        },
+    )
+
+    st.subheader("🗂️ What Counts in Each Bucket")
+    for name, cats in BUCKET_CATEGORIES.items():
+        with st.expander(f"{BUCKET_EMOJIS.get(name, '🎯')} {name} — {', '.join(cats)}"):
+            cat_df = month_df[(month_df["type"] == "Expense") & (month_df["category"].isin(cats))]
+            if name == "Savings":
+                debits = month_df[month_df["type"] == "Savings Debit"]["amount"].sum()
+                st.caption(f"Savings Debits this month: PKR {debits:,.2f}")
+            if cat_df.empty:
+                st.caption("No spending in this bucket yet.")
+            else:
+                cat_totals = cat_df.groupby("category")["amount"].sum().reset_index().sort_values(
+                    "amount", ascending=False)
+                cat_totals["amount"] = cat_totals["amount"].map("PKR {:,.2f}".format)
+                st.dataframe(cat_totals, hide_index=True)
+
+
 def render_search_filter_tab(notion_service):
     """Render the Search & Filter tab"""
     st.header("🔍 Search & Filter Transactions")
@@ -589,7 +796,7 @@ def render_search_filter_tab(notion_service):
                 date_to = st.date_input("To", value=max_date, min_value=min_date, max_value=max_date, key="date_to")
 
             st.write("**Transaction Type**")
-            selected_type = st.selectbox("Select Type", ["All", "Income", "Expense",  "Savings Debit"])
+            selected_type = st.selectbox("Select Type", ["All", "Income", "Expense", "Savings Debit"])
 
         with filter_col2:
             st.write("**Amount Range**")
@@ -667,6 +874,119 @@ def render_search_filter_tab(notion_service):
         st.info("❌ No transactions recorded yet.")
 
 
+def render_yearly_summary_tab(notion_service):
+    """Render the Yearly Summary tab"""
+    st.header("📈 Yearly Summary")
+
+    if st.button("🔄 Refresh Data", key="refresh_yearly"):
+        st.cache_data.clear()
+        st.rerun()
+
+    transactions = notion_service.get_transactions()
+
+    if transactions:
+        df = pd.DataFrame(transactions)
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df["year"] = df["date"].dt.year
+
+        years = sorted(df["year"].unique(), reverse=True)
+
+        selected_year = st.selectbox("Select Year", years)
+
+        yearly_df = df[df["year"] == selected_year]
+
+        if not yearly_df.empty:
+            st.subheader(f"Summary for {selected_year}")
+
+            total_income = yearly_df[yearly_df["type"] == "Income"]["amount"].sum()
+            total_expense = yearly_df[yearly_df["type"] == "Expense"]["amount"].sum()
+            total_savings = yearly_df[yearly_df["category"] == "Savings"]["amount"].sum()
+            savings_debit = yearly_df[yearly_df["type"] == "Savings Debit"]["amount"].sum()
+            net_savings = total_savings - savings_debit
+            physical_investments = yearly_df[yearly_df["category"] == "Physical Investments"]["amount"].sum()
+            stocks = yearly_df[yearly_df["category"] == "Stocks"]["amount"].sum()
+            mutual_funds = yearly_df[yearly_df["category"] == "Mutual Funds"]["amount"].sum()
+            net_balance = total_income - total_expense
+
+            col_a, col_b, col_c = st.columns(3)
+            col_a.metric("💰 Total Income", f"PKR {total_income:,.2f}")
+            col_b.metric("💸 Total Expenses", f"PKR {total_expense:,.2f}")
+            col_c.metric("💵 Net Balance", f"PKR {net_balance:,.2f}")
+
+            col_a.metric("💳 Total Savings", f"PKR {total_savings:,.2f}",
+                         delta=f"{total_savings / total_income * 100:.1f}%" if total_income > 0 else "0%")
+            col_b.metric("🥇 Physical Investments", f"PKR {physical_investments:,.2f}",
+                         delta=f"{physical_investments / total_income * 100:.1f}%" if total_income > 0 else "0%")
+            col_c.metric("🤑 Net Savings", f"PKR {net_savings:,.2f}",
+                         delta=f"{net_savings / total_income * 100:.1f}%" if total_income > 0 else "0%")
+
+            col_a.metric("📈 Total Stocks", f"PKR {stocks:,.2f}",
+                         delta=f"{stocks / total_income * 100:.1f}%" if total_income > 0 else "0%")
+            col_b.metric("💹 Total Mutual Funds", f"PKR {mutual_funds:,.2f}",
+                         delta=f"{mutual_funds / total_income * 100:.1f}%" if total_income > 0 else "0%")
+
+            salary_income = yearly_df[(yearly_df["type"] == "Income") & (yearly_df["category"] == "Salary")][
+                "amount"].sum()
+            if salary_income > 0:
+                annual_actuals = compute_bucket_actuals(yearly_df)
+                st.subheader("🎯 Annual Allocation Check")
+                alloc_cols = st.columns(len(BUDGET_ALLOCATIONS))
+                for i, (name, pct) in enumerate(BUDGET_ALLOCATIONS.items()):
+                    target = salary_income * pct
+                    actual = annual_actuals.get(name, 0.0)
+                    ratio = actual / target if target > 0 else 0.0
+                    with alloc_cols[i]:
+                        st.metric(
+                            f"{BUCKET_EMOJIS.get(name, '🎯')} {name}",
+                            f"{ratio * 100:.0f}%",
+                            delta="Over" if ratio > 1.0 else "OK",
+                            delta_color="inverse" if ratio > 1.0 else "normal",
+                        )
+                        st.progress(min(ratio, 1.0))
+                        st.caption(f"PKR {actual:,.0f} / {target:,.0f}")
+
+            st.subheader("Monthly Breakdown")
+            month_pivot = yearly_df.groupby([yearly_df["date"].dt.to_period("M"), "type"])["amount"].sum().reset_index()
+            month_pivot["date"] = month_pivot["date"].astype(str)
+            month_pivot = month_pivot.pivot(index="date", columns="type", values="amount").fillna(0)
+            st.bar_chart(month_pivot)
+
+            expense_df = yearly_df[yearly_df["type"] == "Expense"]
+            if not expense_df.empty:
+                st.subheader("Expenses by Category")
+                category_totals = expense_df.groupby("category")["amount"].sum().reset_index().sort_values(
+                    "amount", ascending=False)
+                st.bar_chart(category_totals.set_index("category"))
+
+                st.subheader("Expense Breakdown")
+                exp_cols = st.columns(min(len(category_totals), 3))
+                for i, (_, row) in enumerate(category_totals.iterrows()):
+                    exp_cols[i % len(exp_cols)].metric(label=row["category"], value=f"PKR {row['amount']:,.2f}")
+
+            income_df = yearly_df[yearly_df["type"] == "Income"]
+            if not income_df.empty:
+                st.subheader("Income by Category")
+                income_category_totals = income_df.groupby("category")["amount"].sum().reset_index().sort_values(
+                    "amount", ascending=False)
+                st.bar_chart(income_category_totals.set_index("category"))
+
+                st.subheader("Income Breakdown")
+                inc_cols = st.columns(min(len(income_category_totals), 3))
+                for i, (_, row) in enumerate(income_category_totals.iterrows()):
+                    inc_cols[i % len(inc_cols)].metric(label=row["category"], value=f"PKR {row['amount']:,.2f}")
+
+            st.subheader("Investment Summary")
+            inv_col1, inv_col2, inv_col3 = st.columns(3)
+            inv_col1.metric("🥇 Physical Investments", f"PKR {physical_investments:,.2f}")
+            inv_col2.metric("📈 Stocks", f"PKR {stocks:,.2f}")
+            inv_col3.metric("💹 Mutual Funds", f"PKR {mutual_funds:,.2f}")
+
+        else:
+            st.info(f"No transactions found for {selected_year}.")
+    else:
+        st.info("❌ No transactions recorded yet.")
+
+
 def main():
     """Main application entry point"""
     setup_page()
@@ -686,7 +1006,9 @@ def main():
         st.rerun()
 
     notion_service = NotionService()
-    main_tabs = st.tabs(["💸 Add Transaction", "📊 View Budget", "🔍 Search & Filter"])
+    main_tabs = st.tabs(
+        ["💸 Add Transaction", "📊 View Budget", "🎯 Allocation Stats", "🔍 Search & Filter", "📈 Yearly Summary"]
+    )
 
     with main_tabs[0]:
         render_add_transaction_tab(notion_service)
@@ -695,7 +1017,13 @@ def main():
         render_budget_overview_tab(notion_service)
 
     with main_tabs[2]:
+        render_budget_stats_tab(notion_service)
+
+    with main_tabs[3]:
         render_search_filter_tab(notion_service)
+
+    with main_tabs[4]:
+        render_yearly_summary_tab(notion_service)
 
 
 if __name__ == "__main__":
