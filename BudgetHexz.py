@@ -150,21 +150,23 @@ MONTHS = [
 # ---------- Budget Allocation Plan ----------
 # Share of monthly salary assigned to each bucket
 BUDGET_ALLOCATIONS = {
-    "Bills & Rent": 0.55,
-    "Daily Life": 0.25,
+    "Bills & Rent": 0.40,
+    "Daily Life": 0.30,
     "Pro Investments": 0.10,
     "Savings": 0.10,
+    "Others": 0.10,
 }
 
 # Which spending categories count toward each bucket
 BUCKET_CATEGORIES = {
-    "Bills & Rent": ["Rent", "Bills & Utilities"],
+    "Bills & Rent": ["Rent", "Bills & Utilities", "Food & Dining"],
     "Daily Life": [
-        "Food & Dining", "Transportation", "Shopping", "Entertainment",
-        "Healthcare", "Education", "Other"
+        "Transportation", "Shopping", "Entertainment",
+        "Healthcare", "Education",
     ],
     "Pro Investments": ["Physical Investments", "Stocks", "Mutual Funds"],
     "Savings": ["Savings"],
+    "Others": ["Other"],
 }
 
 BUCKET_EMOJIS = {
@@ -172,6 +174,7 @@ BUCKET_EMOJIS = {
     "Daily Life": "🛒",
     "Pro Investments": "📈",
     "Savings": "💳",
+    "Others": "📦",
 }
 
 
@@ -1129,8 +1132,8 @@ def render_budget_stats_tab(notion_service):
         st.rerun()
 
     st.caption(
-        "See how your salary splits across the four budget buckets. "
-        "🏠 Bills & Rent 55% · 🛒 Daily Life 25% · 📈 Pro Investments 10% · 💳 Savings 10%"
+        "See how your salary splits across the five budget buckets. "
+        "🏠 Bills & Rent 40% · 🛒 Daily Life 30% · 📈 Pro Investments 10% · 💳 Savings 10% · 📦 Others 10%"
     )
 
     pkt = pytz.timezone("Asia/Karachi")
